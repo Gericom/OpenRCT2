@@ -355,117 +355,111 @@ void window_construction_paint()
 	RCT2_GLOBAL(0xF44135, uint8_t) = (edx >> 8) & 0xFF;
 	edx >>= 16;
 	RCT2_GLOBAL(0xF44136, int16_t) = edx;
-	eax = RCT2_GLOBAL(0xF44133, uint8_t);
-	eax *= 0x260;
-	eax = RCT2_GLOBAL(RCT2_ADDRESS_RIDE_LIST + eax, uint8_t);
-	eax = RCT2_GLOBAL(RCT2_ADDRESS_RIDE_FLAGS + eax * 8, uint32_t);
-	RCT2_GLOBAL(0xF44064, uint32_t) = eax;
+
+	rct_ride* ride = GET_RIDE(RCT2_GLOBAL(0xF44133, uint8));
+
+	RCT2_GLOBAL(0xF44064, uint32_t) = RCT2_ADDRESS(RCT2_ADDRESS_RIDE_FLAGS, uint32_t)[ride->type * 2];
+
+	// 0x009D7C04 is a widget address remember to change when widget implemented
+	int width = RCT2_GLOBAL(0x9D7C04, int16_t) - RCT2_GLOBAL(0x9D7C02, int16_t) - 1;
+	int height = RCT2_GLOBAL(0x9D7C08, int16_t) - RCT2_GLOBAL(0x9D7C06, int16_t) - 1;
+
 	rct_drawpixelinfo* clip_dpi = clip_drawpixelinfo(
 		dpi,
+		// 0x009D7C02 is a widget address remember to change when widget implemented
 		w->x + RCT2_GLOBAL(0x9D7C02, int16_t) + 1,
-		RCT2_GLOBAL(0x9D7C04, int16_t) - RCT2_GLOBAL(0x9D7C02, int16_t) - 1,
+		width,
 		w->y + RCT2_GLOBAL(0x9D7C06, int16_t) + 1,
-		RCT2_GLOBAL(0x9D7C08, int16_t) - RCT2_GLOBAL(0x9D7C06, int16_t) - 1);
+		height);
+
 	if (clip_dpi != NULL)
 	{
-		short bp = RCT2_GLOBAL(0x9D7C04, int16_t) - RCT2_GLOBAL(0x9D7C02, int16_t) - 1;
-		short si = RCT2_GLOBAL(0x9D7C08, int16_t) - RCT2_GLOBAL(0x9D7C06, int16_t) - 1;
+		short bp = width;
+		short si = height;
 		rct_preview_track *trackBlock;
 		ecx = RCT2_GLOBAL(0xF44135, uint8_t);
 		if (RCT2_GLOBAL(0xF44064, uint32_t) & 0x80000)
+			trackBlock = RCT2_ADDRESS(0x994A38, rct_preview_track*)[ecx];
+		else 
+			trackBlock = RCT2_ADDRESS(0x994638, rct_preview_track*)[ecx];
+
+		while ((trackBlock + 1)->var_00 != 0xFF)
 		{
-			trackBlock = RCT2_GLOBAL(0x994A38 + ecx * 4, rct_preview_track*);
-		}
-		else trackBlock = RCT2_GLOBAL(0x994638 + ecx * 4, rct_preview_track*);
-		while (true)
-		{
-			if (trackBlock[1].var_00 == 0xFF) break;
 			trackBlock++;
 		}
-		//TODO: change these names
-		short ax = trackBlock->x;
-		short dx = ((uint16_t*)&trackBlock->pad_05)[0];
-		short cx = trackBlock->y;
-		if (trackBlock->unk_09 & 2) ax = cx = 0;
+
+		short x = trackBlock->x;
+		short z = trackBlock->z;
+		short y = trackBlock->y;
+		if (trackBlock->var_09 & 2) x = y = 0;
 		short tmp;
 		switch (RCT2_GLOBAL(0xF44134, uint8_t) & 3)
 		{
 		case 1:
-			tmp = ax;
-			ax = cx;
-			cx = -tmp;
+			tmp = x;
+			x = y;
+			y = -tmp;
 			break;
 		case 2:
-			ax = -ax;
-			cx = -cx;
+			x = -x;
+			y = -y;
 			break;
 		case 3:
-			tmp = ax;
-			ax = -cx;
-			cx = tmp;
+			tmp = x;
+			x = -y;
+			y = tmp;
 			break;
 		case 0:
 			break;
 		}
 		//this is actually case 0, but the other cases all jump to it
-		ax /= 2;
-		cx /= 2;
-		ax += 4112;
-		cx += 4112;
-		dx += 1024;
+		x /= 2;
+		y /= 2;
+		x += 4112;
+		y += 4112;
+		z += 1024;
 		ebx = RCT2_GLOBAL(0xF44135, uint8_t);
+
 		short bx;
 		if (RCT2_GLOBAL(0xF44064, uint32_t) & 0x80000)
 			bx = RCT2_GLOBAL(0x9984A2 + ebx * 8, uint8_t);
-		else bx = RCT2_GLOBAL(0x997CA2 + ebx * 8, uint8_t);
-		dx -= bx;
-		switch (RCT2_GLOBAL(RCT2_ADDRESS_CURRENT_ROTATION, uint32_t))
-		{
+		else 
+			bx = RCT2_GLOBAL(0x997CA2 + ebx * 8, uint8_t);
+
+		int start_x = x;
+
+		switch (RCT2_GLOBAL(RCT2_ADDRESS_CURRENT_ROTATION, uint32)){
 		case 0:
-			bx = ax;
-			ax = -ax;
-			ax += cx;
-			cx += bx;
-			cx /= 2;
-			cx -= dx;
+			x = y - x;
+			y = (y + start_x) / 2 - z;
 			break;
 		case 1:
-			ax = -ax;
-			bx = ax;
-			ax -= cx;
-			cx += bx;
-			cx /= 2;
-			cx -= dx;
+			x = -y - x;
+			y = (y - start_x) / 2 - z;
 			break;
 		case 2:
-			bx = ax;
-			ax -= cx;
-			cx = -cx;
-			cx -= bx;
-			cx /= 2;
-			cx -= dx;
+			x = -y + x;
+			y = (-y - start_x) / 2 - z;
 			break;
 		case 3:
-			bx = ax;
-			ax += cx;
-			cx = -cx;
-			cx += bx;
-			cx /= 2;
-			cx -= dx;
+			x = y + x;
+			y = (-y + start_x) / 2 - z;
 			break;
 		}
-		bp >>= 1;
-		si >>= 1;
-		si += 16;
-		ax -= bp;
-		cx -= si;
-		clip_dpi->x += ax;
-		clip_dpi->y += cx;
+
+		clip_dpi->x += x - width / 2;
+		clip_dpi->y += y - height / 2 - 16;
+
 		RCT2_GLOBAL(0x140E9A8, rct_drawpixelinfo*) = clip_dpi;
 		uint32_t d = RCT2_GLOBAL(0xF44136, int16_t) << 16;
+
+		// Ride id
 		d |= RCT2_GLOBAL(0xF44133, uint8_t);
+
 		d |= RCT2_GLOBAL(0xF44135, uint8_t) << 8;
-		RCT2_CALLPROC_X(0x6CBCE2, 0x1000, (((uint16_t)bx) & 0xFF) | (RCT2_GLOBAL(0xF44134, uint8_t) << 8), 0x1000, d, si, 0x400, bp);
+		RCT2_CALLPROC_X(0x6CBCE2, 0x1000, (((uint16_t)bx) & 0xFF) | (RCT2_GLOBAL(0xF44134, uint8_t) << 8), 0x1000, d, 0, 0x400, 0);
+
+		rct2_free(clip_dpi);
 	}
 	short cx = (RCT2_GLOBAL(0x9D7C02, int16_t) + RCT2_GLOBAL(0x9D7C04, int16_t)) / 2 + w->x;
 	short dx = RCT2_GLOBAL(0x9D7C08, int16_t) + w->y - 23;
