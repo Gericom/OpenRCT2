@@ -1,22 +1,18 @@
+#pragma region Copyright (c) 2014-2016 OpenRCT2 Developers
 /*****************************************************************************
- * Copyright (c) 2014 Ted John
  * OpenRCT2, an open source clone of Roller Coaster Tycoon 2.
  *
- * This file is part of OpenRCT2.
+ * OpenRCT2 is the work of many authors, a full list can be found in contributors.md
+ * For more information, visit https://github.com/OpenRCT2/OpenRCT2
  *
  * OpenRCT2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * A full copy of the GNU General Public License can be found in licence.txt
  *****************************************************************************/
+#pragma endregion
 
 #include "map.h"
 #include "map_helpers.h"
@@ -61,8 +57,8 @@ int map_smooth(int l, int t, int r, int b)
 					if (cornerHeights[i] == highest){
 						count++;
 
-						// Check if surrounding corners aren't too high. The current tile 
-						// can't compensate for all the height differences anymore if it has 
+						// Check if surrounding corners aren't too high. The current tile
+						// can't compensate for all the height differences anymore if it has
 						// the extra height slope.
 						int highestOnLowestSide;
 						switch (i){
@@ -179,7 +175,7 @@ int map_smooth(int l, int t, int r, int b)
 	return raisedLand;
 }
 
-int map_get_corner_height(int x, int y, int corner)
+static int map_get_corner_height(int x, int y, int corner)
 {
 	rct_map_element *mapElement = map_get_surface_element_at(x, y);
 	int baseHeight = mapElement->base_height;
@@ -194,13 +190,13 @@ int map_get_corner_height(int x, int y, int corner)
 
 	switch (corner) {
 	case 0:
-		return baseHeight + (slope & 1 ? (doubleCorner == 1 ? 4 : 2) : 0);
+		return baseHeight + ((slope & 1) ? (doubleCorner == 1 ? 4 : 2) : 0);
 	case 1:
-		return baseHeight + (slope & 8 ? (doubleCorner == 8 ? 4 : 2) : 0);
+		return baseHeight + ((slope & 8) ? (doubleCorner == 8 ? 4 : 2) : 0);
 	case 2:
-		return baseHeight + (slope & 2 ? (doubleCorner == 2 ? 4 : 2) : 0);
+		return baseHeight + ((slope & 2) ? (doubleCorner == 2 ? 4 : 2) : 0);
 	case 3:
-		return baseHeight + (slope & 4 ? (doubleCorner == 4 ? 4 : 2) : 0);
+		return baseHeight + ((slope & 4) ? (doubleCorner == 4 ? 4 : 2) : 0);
 	default:
 		return baseHeight;
 	}
@@ -209,7 +205,7 @@ int map_get_corner_height(int x, int y, int corner)
 /**
  * There are non-smoothed tiles with this version, but diagonal land blocks end up being wavy.
  */
-int map_smooth_wavy(int l, int t, int r, int b)
+static int map_smooth_wavy(int l, int t, int r, int b)
 {
 	int i, x, y, highest, count, cornerHeights[4], doubleCorner, raisedLand = 0;
 	rct_map_element *mapElement;
@@ -297,14 +293,14 @@ int map_smooth_wavy(int l, int t, int r, int b)
 					map_get_corner_height(x + 0, y + 1, 3) > mapElement->base_height
 				)
 					mapElement->properties.surface.slope |= 8;
-				
+
 				if (
 					map_get_corner_height(x + 1, y - 1, 1) > mapElement->base_height ||
 					map_get_corner_height(x + 1, y + 0, 3) > mapElement->base_height ||
 					map_get_corner_height(x + 0, y - 1, 0) > mapElement->base_height
 				)
 					mapElement->properties.surface.slope |= 2;
-				
+
 				if (
 					map_get_corner_height(x - 1, y - 1, 0) > mapElement->base_height ||
 					map_get_corner_height(x - 1, y + 0, 2) > mapElement->base_height ||

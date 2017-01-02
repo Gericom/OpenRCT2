@@ -1,28 +1,24 @@
+#pragma region Copyright (c) 2014-2016 OpenRCT2 Developers
 /*****************************************************************************
- * Copyright (c) 2014 Ted John
  * OpenRCT2, an open source clone of Roller Coaster Tycoon 2.
  *
- * This file is part of OpenRCT2.
+ * OpenRCT2 is the work of many authors, a full list can be found in contributors.md
+ * For more information, visit https://github.com/OpenRCT2/OpenRCT2
  *
  * OpenRCT2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * A full copy of the GNU General Public License can be found in licence.txt
  *****************************************************************************/
+#pragma endregion
 
 #ifndef _FORMAT_CODES_H_
 #define _FORMAT_CODES_H_
 
-char format_get_code(const char *token);
-const char *format_get_token(char code);
+uint32 format_get_code(const char *token);
+const char *format_get_token(uint32 code);
 
 enum {
 	// Font format codes
@@ -56,11 +52,8 @@ enum {
 	// The next 4 bytes specify the sprite
 	FORMAT_INLINE_SPRITE = 23,
 
-	// Non ascii-characters
-	FORMAT_ENDQUOTES = 34,
-
 	// Argument format codes
-	FORMAT_ARGUMENT_CODE_START = 123,
+	FORMAT_ARGUMENT_CODE_START = 123, // 'z' == 122 or 0x7A
 	FORMAT_COMMA32 = 123,
 	FORMAT_INT32,
 	FORMAT_COMMA2DP32,
@@ -80,6 +73,7 @@ enum {
 	FORMAT_REALTIME,
 	FORMAT_LENGTH,
 	FORMAT_SPRITE,
+	FORMAT_ARGUMENT_CODE_END = FORMAT_SPRITE,
 
 	// Colour format codes
 	FORMAT_COLOUR_CODE_START = 142,
@@ -101,27 +95,42 @@ enum {
 
 	// Extra non-ascii characters
 	FORMAT_AMINUSCULE = 159,
-	FORMAT_UP,
+	FORMAT_CENT = 162,
 	FORMAT_POUND = 163,
 	FORMAT_YEN = 165,
 	FORMAT_COPYRIGHT = 169,
-	FORMAT_DOWN,
-	FORMAT_LEFTGUILLEMET,
-	FORMAT_TICK,
-	FORMAT_CROSS,
-	FORMAT_RIGHT = 175,
-	FORMAT_DEGREE,
+	FORMAT_LEFTGUILLEMET = 171,
+	FORMAT_DEGREE = 176,
 	FORMAT_SQUARED = 178,
-	FORMAT_OPENQUOTES = 180,
-	FORMAT_EURO = 181,
-	FORMAT_APPROX = 184,
-	FORMAT_POWERNEGATIVEONE,
-	FORMAT_BULLET,
-	FORMAT_RIGHTGUILLEMET,
-	FORMAT_SMALLUP,
-	FORMAT_SMALLDOWN,
-	FORMAT_LEFT,
-	FORMAT_INVERTEDQUESTION
+	FORMAT_RIGHTGUILLEMET = 187,
+	FORMAT_INVERTEDQUESTION = 191,
+
+	FORMAT_OPENQUOTES = 8220,
+	FORMAT_ENDQUOTES = 8221,
+
+	FORMAT_BULLET = 8226,
+	FORMAT_POWERNEGATIVEONE = 8315,
+	FORMAT_EURO = 8364,
+
+	FORMAT_APPROX = 8776,
+
+	FORMAT_UP = 9650,
+	FORMAT_RIGHT = 9654,
+	FORMAT_DOWN = 9660,
+	FORMAT_LEFT = 9664,
+
+	FORMAT_SMALLUP = 9652,
+	FORMAT_SMALLDOWN = 9662,
+
+	FORMAT_TICK = 10003,
+	FORMAT_CROSS = 10005,
+
+	// Format codes that need suitable unicode allocations
+	FORMAT_SYMBOL_i = 20000,
+	FORMAT_SYMBOL_RAILWAY = 20001,
+	FORMAT_SYMBOL_ROAD = 20002,
+	FORMAT_SYMBOL_FLAG = 20003,
+	FORMAT_COMMA1DP16 = 20004
 };
 
 #endif

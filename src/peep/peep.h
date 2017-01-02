@@ -1,27 +1,24 @@
+#pragma region Copyright (c) 2014-2016 OpenRCT2 Developers
 /*****************************************************************************
- * Copyright (c) 2014 Ted John, Peter Hill
  * OpenRCT2, an open source clone of Roller Coaster Tycoon 2.
  *
- * This file is part of OpenRCT2.
+ * OpenRCT2 is the work of many authors, a full list can be found in contributors.md
+ * For more information, visit https://github.com/OpenRCT2/OpenRCT2
  *
  * OpenRCT2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * A full copy of the GNU General Public License can be found in licence.txt
  *****************************************************************************/
+#pragma endregion
 
 #ifndef _PEEP_H_
 #define _PEEP_H_
 
 #include "../common.h"
+#include "../world/map.h"
 
 #define PEEP_MAX_THOUGHTS 5
 
@@ -40,6 +37,7 @@ enum PEEP_TYPE {
 };
 
 enum PEEP_THOUGHT_TYPE {
+	PEEP_THOUGHT_TYPE_CANT_AFFORD_0 = 0, // "I can't afford"
 	PEEP_THOUGHT_TYPE_SPENT_MONEY = 1, // "I've spent all my money"
 	PEEP_THOUGHT_TYPE_SICK = 2, // "I feel sick"
 	PEEP_THOUGHT_TYPE_VERY_SICK = 3, // "I feel very sick"
@@ -74,7 +72,7 @@ enum PEEP_THOUGHT_TYPE {
 	PEEP_THOUGHT_TYPE_CROWDED = 32, // "It's too crowded here"
 	PEEP_THOUGHT_TYPE_VANDALISM = 33, // "The vandalism here is really bad"
 	PEEP_THOUGHT_TYPE_SCENERY = 34, // "Great scenery!"
-	PEEP_THOUGHT_VERY_CLEAN = 35, // "This park is very clean and tidy"
+	PEEP_THOUGHT_TYPE_VERY_CLEAN = 35, // "This park is very clean and tidy"
 	PEEP_THOUGHT_TYPE_FOUNTAINS = 36, // "The jumping fountains are great"
 	PEEP_THOUGHT_TYPE_MUSIC = 37, // "The music is nice here"
 	PEEP_THOUGHT_TYPE_BALLOON = 38, // "This baloon from X is really good value"
@@ -149,7 +147,7 @@ enum PEEP_THOUGHT_TYPE {
 	PEEP_THOUGHT_TYPE_SUB_SANDWICH = 119,
 	PEEP_THOUGHT_TYPE_COOKIE = 120,
 
-	PEEP_THOUGH_ROAST_SAUSAGE = 124,
+	PEEP_THOUGHT_TYPE_ROAST_SAUSAGE = 124,
 
 	PEEP_THOUGHT_TYPE_PHOTO2_MUCH = 136,
 	PEEP_THOUGHT_TYPE_PHOTO3_MUCH = 137,
@@ -169,20 +167,20 @@ enum PEEP_THOUGHT_TYPE {
 	PEEP_THOUGHT_TYPE_SUB_SANDWICH_MUCH = 151,
 	PEEP_THOUGHT_TYPE_COOKIE_MUCH = 152,
 
-	PEEP_THOUGHT_ROAST_SAUSAGE_MUCH = 156,
+	PEEP_THOUGHT_TYPE_ROAST_SAUSAGE_MUCH = 156,
 
-	PEEP_THOUGHT_HELP = 168, // "Help! Put me down!"
-	PEEP_THOUGHT_RUNNING_OUT = 169, // I'm running out of cash!"
-	PEEP_THOUGHT_NEW_RIDE = 170, // "Wow! A new ride being built!"
-	PEEP_THOUGHT_NICE_RIDE = 171, // "Nice ride! But not as good as the Phoenix..."
-	PEEP_THOUGHT_EXCITED = 172, // "I'm so excited - It's an Intamin ride!"
-	PEEP_THOUGHT_HERE_WE_ARE = 173, // "...and here we are on X!"
+	PEEP_THOUGHT_TYPE_HELP = 168, // "Help! Put me down!"
+	PEEP_THOUGHT_TYPE_RUNNING_OUT = 169, // "I'm running out of cash!"
+	PEEP_THOUGHT_TYPE_NEW_RIDE = 170, // "Wow! A new ride being built!"
+	PEEP_THOUGHT_TYPE_NICE_RIDE_DEPRECATED = 171, // "Nice ride! But not as good as the Phoenix..."
+	PEEP_THOUGHT_TYPE_EXCITED_DEPRECATED = 172, // "I'm so excited - It's an Intamin ride!"
+	PEEP_THOUGHT_TYPE_HERE_WE_ARE = 173, // "...and here we are on X!"
 
 	PEEP_THOUGHT_TYPE_NONE = 255
 };
 
 enum PEEP_STATE {
-	PEEP_STATE_FALLING = 0, //Drowning is part of falling
+	PEEP_STATE_FALLING = 0, // Drowning is part of falling
 	PEEP_STATE_1 = 1,
 	PEEP_STATE_QUEUING_FRONT = 2,
 	PEEP_STATE_ON_RIDE = 3,
@@ -208,15 +206,16 @@ enum PEEP_STATE {
 	PEEP_STATE_INSPECTING = 23
 };
 
-enum PEEP_ACTION_EVENTS {	
+enum PEEP_ACTION_EVENTS {
+	PEEP_ACTION_CHECK_TIME = 0,
 	// If no food then check watch
 	PEEP_ACTION_EAT_FOOD = 1,
 	PEEP_ACTION_SHAKE_HEAD = 2,
-	PEEP_ACTION_EMPTY_POCKETS = 3,	
+	PEEP_ACTION_EMPTY_POCKETS = 3,
 	PEEP_ACTION_SITTING_EAT_FOOD = 4,
 	PEEP_ACTION_SITTING_CHECK_WATCH = 4,
 	PEEP_ACTION_SITTING_LOOK_AROUND_LEFT = 5,
-	PEEP_ACTION_SITTING_LOOK_AROUND_RIGHT = 6,	
+	PEEP_ACTION_SITTING_LOOK_AROUND_RIGHT = 6,
 	PEEP_ACTION_WOW = 7,
 	PEEP_ACTION_THROW_UP = 8,
 	PEEP_ACTION_JUMP = 9,
@@ -228,15 +227,18 @@ enum PEEP_ACTION_EVENTS {
 	PEEP_ACTION_STAFF_FIX = 15,
 	PEEP_ACTION_STAFF_FIX_2 = 16,
 	PEEP_ACTION_STAFF_FIX_GROUND = 17,
+	PEEP_ACTION_STAFF_FIX_3 = 18,
 	PEEP_ACTION_STAFF_WATERING = 19,
+	PEEP_ACTION_JOY = 20,
+	PEEP_ACTION_READ_MAP = 21,
 	PEEP_ACTION_WAVE = 22,
 	PEEP_ACTION_STAFF_EMPTY_BIN = 23,
 	PEEP_ACTION_WAVE_2 = 24,
 	PEEP_ACTION_TAKE_PHOTO = 25,
 	PEEP_ACTION_CLAP = 26,
-
+	PEEP_ACTION_27 = 27,
 	PEEP_ACTION_DRAW_PICTURE = 28,
-
+	PEEP_ACTION_29,
 	PEEP_ACTION_WITHDRAW_MONEY = 30,
 
 	PEEP_ACTION_NONE_1 = 254,
@@ -246,29 +248,34 @@ enum PEEP_ACTION_EVENTS {
 enum PEEP_FLAGS {
 	PEEP_FLAGS_LEAVING_PARK = (1 << 0),
 	PEEP_FLAGS_SLOW_WALK = (1 << 1),
-
+	PEEP_FLAGS_2 = (1 << 2),
 	PEEP_FLAGS_TRACKING = (1 << 3),
 	PEEP_FLAGS_WAVING = (1 << 4), // Makes the peep wave
-
+	PEEP_FLAGS_HAS_PAID_FOR_PARK_ENTRY = (1 << 5), // Set on paying to enter park
 	PEEP_FLAGS_PHOTO = (1 << 6), // Makes the peep take a picture
-	PEEP_FLAGS_PAINTING = (1 << 7), 
-
+	PEEP_FLAGS_PAINTING = (1 << 7),
+	PEEP_FLAGS_WOW = (1 << 8), // Makes a peep WOW2
 	PEEP_FLAGS_LITTER = (1 << 9), // Makes the peep throw litter
 	PEEP_FLAGS_LOST = (1 << 10), // Makes the peep feel lost (animation trigerred)
 	PEEP_FLAGS_HUNGER = (1 << 11), // Makes the peep become hungry quicker
 	PEEP_FLAGS_BATHROOM = (1 << 12), // Makes the peep want to go to the bathroom
 	PEEP_FLAGS_CROWDED = (1 << 13), // The peep will start feeling crowded
-
+	PEEP_FLAGS_HAPPINESS = (1 << 14), // The peep will start increasing happiness
 	PEEP_FLAGS_NAUSEA = (1 << 15), // Makes the peep feel sick (e.g. after an extreme ride)
-
-	PEEP_FLAGS_EATING = (1 << 17), // Reduces hunger
+	PEEP_FLAGS_PURPLE = (1 << 16), // Makes surrounding peeps purple
+	PEEP_FLAGS_PIZZA = (1 << 17), // Gives passing peeps pizza
 	PEEP_FLAGS_EXPLODE = (1 << 18),
-
-	PEEP_FLAGS_21 = (1<<21),
-
+	PEEP_FLAGS_RIDE_SHOULD_BE_MARKED_AS_FAVOURITE = (1 << 19),
+	PEEP_FLAGS_PARK_ENTRANCE_CHOSEN = (1 << 20), //Set when the nearest park entrance has been chosen
+	PEEP_FLAGS_21 = (1 << 21),
+	PEEP_FLAGS_CONTAGIOUS = (1 << 22), // Makes any peeps in surrounding tiles sick
 	PEEP_FLAGS_JOY = (1 << 23), // Makes the peep jump in joy
 	PEEP_FLAGS_ANGRY = (1 << 24),
-	PEEP_FLAGS_ICE_CREAM = (1 << 25) // Unconfirmed
+	PEEP_FLAGS_ICE_CREAM = (1 << 25), // Gives passing peeps ice cream and they wave back
+	PEEP_FLAGS_NICE_RIDE_DEPRECATED = (1 << 26), // Used to make the peep think "Nice ride! But not as good as the Phoenix..." on exiting a ride
+	PEEP_FLAGS_INTAMIN_DEPRECATED = (1 << 27), // Used to make the peep think "I'm so excited - It's an Intamin ride!" while riding on a Intamin ride.
+	PEEP_FLAGS_HERE_WE_ARE = (1 << 28), // Makes the peep think  "...and here we are on X!" while riding a ride
+	PEEP_FLAGS_TWITCH = (1u << 31)		// Added for twitch integration
 };
 
 enum PEEP_NAUSEA_TOLERANCE {
@@ -334,130 +341,197 @@ enum PEEP_ITEM {
 	PEEP_ITEM_EMPTY_BOWL_BLUE = (1 << 21)
 };
 
-typedef struct {
+enum PEEP_SPRITE_TYPE {
+	PEEP_SPRITE_TYPE_NORMAL = 0,
+	PEEP_SPRITE_TYPE_HANDYMAN = 1,
+	PEEP_SPRITE_TYPE_MECHANIC = 2,
+	PEEP_SPRITE_TYPE_SECURITY = 3,
+	PEEP_SPRITE_TYPE_ENTERTAINER_PANDA = 4,
+	PEEP_SPRITE_TYPE_ENTERTAINER_TIGER = 5,
+	PEEP_SPRITE_TYPE_ENTERTAINER_ELEPHANT = 6,
+	PEEP_SPRITE_TYPE_ENTERTAINER_ROMAN = 7,
+	PEEP_SPRITE_TYPE_ENTERTAINER_GORILLA = 8,
+	PEEP_SPRITE_TYPE_ENTERTAINER_SNOWMAN = 9,
+	PEEP_SPRITE_TYPE_ENTERTAINER_KNIGHT = 10,
+	PEEP_SPRITE_TYPE_ENTERTAINER_ASTRONAUT = 11,
+	PEEP_SPRITE_TYPE_ENTERTAINER_BANDIT = 12,
+	PEEP_SPRITE_TYPE_ENTERTAINER_SHERIFF = 13,
+	PEEP_SPRITE_TYPE_ENTERTAINER_PIRATE = 14,
+	PEEP_SPRITE_TYPE_BALLOON = 19,
+	PEEP_SPRITE_TYPE_CANDYFLOSS = 20,
+	PEEP_SPRITE_TYPE_UMBRELLA = 21,
+	PEEP_SPRITE_TYPE_PIZZA = 22,
+	PEEP_SPRITE_TYPE_SECURITY_ALT = 23,
+	PEEP_SPRITE_TYPE_POPCORN = 24,
+	PEEP_SPRITE_TYPE_ARMS_CROSSED = 25,
+	PEEP_SPRITE_TYPE_HEAD_DOWN = 26,
+	PEEP_SPRITE_TYPE_NAUSEOUS = 27,
+	PEEP_SPRITE_TYPE_VERY_NAUSEOUS = 28,
+	PEEP_SPRITE_TYPE_REQUIRE_BATHROOM = 29,
+	PEEP_SPRITE_TYPE_HAT = 30,
+	PEEP_SPRITE_TYPE_BURGER = 31,
+	PEEP_SPRITE_TYPE_TENTACLE = 32,
+	PEEP_SPRITE_TYPE_TOFFEE_APPLE = 33,
+	PEEP_SPRITE_TYPE_WATCHING = 38
+};
+
+// Flags used by peep->window_invalidate_flags
+enum PEEP_INVALIDATE {
+	PEEP_INVALIDATE_PEEP_THOUGHTS = 1,
+	PEEP_INVALIDATE_PEEP_STATS = 1 << 1,
+	PEEP_INVALIDATE_PEEP_2 = 1 << 2,
+	PEEP_INVALIDATE_PEEP_INVENTORY = 1 << 3,
+	PEEP_INVALIDATE_STAFF_STATS = 1 << 4,
+};
+
+// Flags used by peep_should_go_on_ride()
+enum PEEP_RIDE_DECISION {
+	PEEP_RIDE_DECISION_AT_QUEUE = 1,
+	PEEP_RIDE_DECISION_THINKING = 1 << 2
+};
+
+#pragma pack(push, 1)
+typedef struct rct_peep_thought {
 	uint8 type;		//0
 	uint8 item;		//1
 	uint8 var_2;	//2
 	uint8 var_3;	//3
 } rct_peep_thought;
+assert_struct_size(rct_peep_thought, 4);
 
-typedef struct {
+typedef struct rct_peep {
 	uint8 sprite_identifier;		// 0x00
 	uint8 var_01;
-	uint16 var_02;					// 0x02
+	uint16 next_in_quadrant;		// 0x02
 	uint16 next;					// 0x04
 	uint16 previous;				// 0x06
 	uint8 linked_list_type_offset;	// 0x08 Valid values are SPRITE_LINKEDLIST_OFFSET_...
-	uint8 var_09;					// 0x09
+	// Height from center of sprite to bottom
+	uint8 sprite_height_negative;	// 0x09
 	uint16 sprite_index;			// 0x0A
-	uint16 var_0C;
+	uint16 flags;			// 0x0C
 	sint16 x;						// 0x0E
 	sint16 y;						// 0x10
 	sint16 z;						// 0x12
-	uint8 var_14;					// 0x14
-	uint8 var_15;					// 0x15
+	// Width from center of sprite to edge
+	uint8 sprite_width;				// 0x14
+	// Height from center of sprite to top
+	uint8 sprite_height_positive;	// 0x15
 	sint16 sprite_left;				// 0x16
 	sint16 sprite_top;				// 0x18
 	sint16 sprite_right;			// 0x1A
 	sint16 sprite_bottom;			// 0x1C
 	uint8 sprite_direction;			// 0x1E
 	uint8 pad_1F[3];
-	uint16 name_string_idx;			// 0x22
+	rct_string_id name_string_idx;	// 0x22
 	uint16 next_x;					// 0x24
 	uint16 next_y;					// 0x26
 	uint8 next_z;					// 0x28
 	uint8 next_var_29;				// 0x29
-	uint8 var_2A;
+	uint8 outside_of_park;			// 0x2A
 	uint8 state;					// 0x2B
 	uint8 sub_state;				// 0x2C
 	uint8 sprite_type;				// 0x2D
 	uint8 type;						// 0x2E
-	union{							
+	union{
 		uint8 staff_type;			// 0x2F
 		uint8 no_of_rides;			// 0x2F
 	};
 	uint8 tshirt_colour;			// 0x30
 	uint8 trousers_colour;			// 0x31
 	uint16 destination_x;			// 0x32 Location that the peep is trying to get to
-	uint16 destination_y;			// 0x34 
+	uint16 destination_y;			// 0x34
 	uint8 destination_tolerence;	// 0x36 How close to destination before next action/state 0 = exact
 	uint8 var_37;
 	uint8 energy;					// 0x38
 	uint8 energy_growth_rate;		// 0x39
 	uint8 happiness;				// 0x3A
-	sint8 happiness_growth_rate;	// 0x3B
+	uint8 happiness_growth_rate;	// 0x3B
 	uint8 nausea;					// 0x3C
 	uint8 nausea_growth_rate;		// 0x3D
 	uint8 hunger;					// 0x3E
 	uint8 thirst;					// 0x3F
 	uint8 bathroom;					// 0x40
-	uint8 pad_41[0x2];
-	uint8 intensity;				// 0x43
+	uint8 var_41;
+	uint8 var_42;
+	uint8 intensity;				// 0x43 The max intensity is stored in the first 4 bits, and the min intensity in the second 4 bits
 	uint8 nausea_tolerance;			// 0x44
-	uint8 var_45;					//		Some sort of flags?
+	uint8 window_invalidate_flags;	// 0x45
 	money16 paid_on_drink;			// 0x46
-	uint8 pad_48[0x10];
+	uint8 ride_types_been_on[16];	// 0x48
 	uint32 item_extra_flags;		// 0x58
 	uint8 photo2_ride_ref;			// 0x5C
 	uint8 photo3_ride_ref;			// 0x5D
 	uint8 photo4_ride_ref;			// 0x5E
-	uint8 pad_5F[0x09];				// 0x5C
+	uint8 pad_5F[0x09];				// 0x5F
 	uint8 current_ride;				// 0x68
 	uint8 current_ride_station;		// 0x69
 	uint8 current_train;   	        // 0x6A
 	union{
 		struct{
-			uint8 current_car;				// 0x6B
-			uint8 current_seat;				// 0x6C
+			uint8 current_car;		// 0x6B
+			uint8 current_seat;		// 0x6C
 		};
-		uint16 time_to_sitdown; //0x6B
+		uint16 time_to_sitdown;		//0x6B
 		struct{
 			uint8 time_to_stand;	//0x6B
 			uint8 standing_flags;	//0x6C
 		};
 	};
-	uint8 var_6D;					// 0x6D
-	uint8 var_6E;					// 0x6E
-	uint8 var_6F;
-	uint8 var_70;
+	// Normally 0, 1 for carrying sliding board on spiral slide ride, 2 for carrying lawn mower
+	uint8 special_sprite;   	    // 0x6D
+	uint8 action_sprite_type;		// 0x6E
+	// Seems to be used like a local variable, as it's always set before calling sub_693BAB, which reads this again
+	uint8 next_action_sprite_type;    // 0x6F
+	uint8 action_sprite_image_offset; // 0x70
 	uint8 action;					// 0x71
 	uint8 action_frame;				// 0x72
 	uint8 var_73;
-	uint16 var_74;
+	union {
+		uint16 var_74; // time getting to ride to fix
+		uint16 next_in_queue;		// 0x74
+	};
 	uint8 var_76;
 	uint8 pad_77;
-	uint8 var_78;
-	uint8 pad_79;
-	uint16 var_7A; // time waiting in line possibly
-	uint8 rides_been_on[32];		// 0x7C 
+	union{
+		uint8 maze_last_edge;			// 0x78
+		uint8 direction;	//Direction ?
+	};
+	uint8 interactionRideIndex;
+	uint16 time_in_queue;			// 0x7A
+	uint8 rides_been_on[32];		// 0x7C
 	// 255 bit bitmap of every ride the peep has been on see
 	// window_peep_rides_update for how to use.
 	uint32 id;						// 0x9C
 	money32 cash_in_pocket;			// 0xA0
 	money32 cash_spent;				// 0xA4
 	sint32 time_in_park;			// 0xA8
-	uint8 var_AC;					// 0xAC
+	sint8 var_AC;					// 0xAC
 	uint8 previous_ride;			// 0xAD
 	uint16 previous_ride_time_out;	// 0xAE
 	rct_peep_thought thoughts[PEEP_MAX_THOUGHTS];	// 0xB0
-	uint8 var_C4;					// 0xC4
-	union							// 0xC5
-	{
-		uint8 staff_id;
-		uint8 guest_heading_to_ride_id;
+	uint8 var_C4;					// 0xC4 has something to do with peep falling, see peep.checkForPath
+	union {
+		uint8 staff_id;						// 0xC5
+		uint8 guest_heading_to_ride_id;		// 0xC5
 	};
-	union{
-		uint8 staff_orders;			// 0xC6
-		uint8 var_C6;
+	union {
+		uint8 staff_orders;				// 0xC6
+		uint8 peep_is_lost_countdown;	// 0xC6
 	};
 	uint8 photo1_ride_ref;			// 0xC7
-	uint32 flags;					// 0xC8
-	uint32 var_CC;
-	uint8 pad_D0[0x10];
-	uint8 var_E0;					// 0xE0
-	uint8 var_E1;
-	uint8 var_E2;					// 0xE2
-	uint8 var_E3;
+	uint32 peep_flags;				// 0xC8
+	rct_xyzd8 pathfind_goal;		// 0xCC
+	rct_xyzd8 pathfind_history[4];	// 0xD0
+	uint8 no_action_frame_no;		// 0xE0
+	// 0x3F Litter Count split into lots of 3 with time, 0xC0 Time since last recalc
+	uint8 litter_count;				// 0xE1
+	union{
+		uint8 time_on_ride;			// 0xE2
+		uint8 var_E2;				// 0xE2
+	};
+	// 0x3F Sick Count split into lots of 3 with time, 0xC0 Time since last recalc
+	uint8 disgusting_count;			// 0xE3
 	union{
 		money16 paid_to_enter;			// 0xE4
 		uint16 staff_lawns_mown;		// 0xE4
@@ -479,20 +553,23 @@ typedef struct {
 	uint8 no_of_food;				// 0xEC
 	uint8 no_of_drinks;				// 0xED
 	uint8 no_of_souvenirs;			// 0xEE
-	uint8 pad_EF;
+	uint8 var_EF;
 	uint8 voucher_type;				// 0xF0
 	uint8 voucher_arguments;		// 0xF1 ride_id or string_offset_id
-	uint8 pad_F2;
-	uint8 var_F3;
+	uint8 var_F2;
+	uint8 angriness;
 	uint8 var_F4;
 	uint8 days_in_queue;			// 0xF5
 	uint8 balloon_colour;			// 0xF6
 	uint8 umbrella_colour;			// 0xF7
 	uint8 hat_colour;				// 0xF8
 	uint8 favourite_ride;			// 0xF9
-	uint16 pad_FA;
+	uint8 favourite_ride_rating;	// 0xFA
+	uint8 pad_FB;
 	uint32 item_standard_flags;		// 0xFC
 } rct_peep;
+assert_struct_size(rct_peep, 0x100);
+#pragma pack(pop)
 
 enum {
 	EASTEREGG_PEEP_NAME_MICHAEL_SCHUMACHER,
@@ -518,20 +595,18 @@ enum {
 	EASTEREGG_PEEP_NAME_KATIE_SMITH,
 	EASTEREGG_PEEP_NAME_EILIDH_BELL,
 	EASTEREGG_PEEP_NAME_NANCY_STILLWAGON,
-	EASTEREGG_PEEP_NAME_ANDY_HINE,
-	EASTEREGG_PEEP_NAME_ELISSA_WHITE,
 	EASTEREGG_PEEP_NAME_DAVID_ELLIS
 };
 
 /** Helper macro until rides are stored in this module. */
-#define GET_PEEP(sprite_index) &(g_sprite_list[sprite_index].peep)
+#define GET_PEEP(sprite_index) &(get_sprite(sprite_index)->peep)
 
 /**
- * Helper macro loop for enumerating through all the non null rides. To avoid needing a end loop counterpart, statements are
+ * Helper macro loop for enumerating through all the peeps. To avoid needing a end loop counterpart, statements are
  * applied in tautology if statements.
  */
 #define FOR_ALL_PEEPS(sprite_index, peep) \
-	for (sprite_index = RCT2_GLOBAL(RCT2_ADDRESS_SPRITES_START_PEEP, uint16); sprite_index != SPRITE_INDEX_NULL; sprite_index = peep->next) \
+	for (sprite_index = gSpriteListHead[SPRITE_LIST_PEEP]; sprite_index != SPRITE_INDEX_NULL; sprite_index = peep->next) \
 		if ((peep = GET_PEEP(sprite_index)) || 1)
 
 #define FOR_ALL_GUESTS(sprite_index, peep) \
@@ -542,6 +617,24 @@ enum {
 	FOR_ALL_PEEPS(sprite_index, peep) \
 		if (peep->type == PEEP_TYPE_STAFF)
 
+extern uint8 gGuestChangeModifier;
+extern uint16 gNumGuestsInPark;
+extern uint16 gNumGuestsInParkLastWeek;
+extern uint16 gNumGuestsHeadingForPark;
+
+extern money16 gGuestInitialCash;
+extern uint8 gGuestInitialHappiness;
+extern uint8 gGuestInitialHunger;
+extern uint8 gGuestInitialThirst;
+
+extern uint32 gNextGuestNumber;
+
+extern uint8 gPeepWarningThrottle[16];
+
+extern rct_xyz16 gPeepPathFindGoalPosition;
+extern bool gPeepPathFindIgnoreForeignQueues;
+extern uint8 gPeepPathFindQueueRideIndex;
+
 int peep_get_staff_count();
 int peep_can_be_picked_up(rct_peep* peep);
 void peep_update_all();
@@ -551,13 +644,22 @@ void peep_update_days_in_queue();
 void peep_applause();
 rct_peep *peep_generate(int x, int y, int z);
 void get_arguments_from_action(rct_peep* peep, uint32 *argument_1, uint32* argument_2);
-void get_arguments_from_thought(rct_peep_thought thought, uint32* argument_1, uint32* argument_2);
+void peep_thought_set_format_args(rct_peep_thought *thought);
 int get_peep_face_sprite_small(rct_peep *peep);
 int get_peep_face_sprite_large(rct_peep *peep);
 int peep_check_easteregg_name(int index, rct_peep *peep);
 int peep_get_easteregg_name_id(rct_peep *peep);
 int peep_is_mechanic(rct_peep *peep);
+bool peep_has_item(rct_peep *peep, int peepItem);
 int peep_has_food(rct_peep* peep);
+void peep_pickup(rct_peep* peep);
+void peep_pickup_abort(rct_peep* peep, int old_x);
+bool peep_pickup_place(rct_peep* peep, int x, int y, int z, bool apply);
+bool peep_pickup_command(unsigned int peepnum, int x, int y, int z, int action, bool apply);
+void game_command_pickup_guest(int* eax, int* ebx, int* ecx, int* edx, int* esi, int* edi, int* ebp);
+void peep_sprite_remove(rct_peep* peep);
+void peep_remove(rct_peep* peep);
+void peep_update_sprite_type(rct_peep* peep);
 
 void peep_window_state_update(rct_peep* peep);
 void peep_decrement_num_riders(rct_peep* peep);
@@ -571,5 +673,33 @@ void peep_insert_new_thought(rct_peep *peep, uint8 thought_type, uint8 thought_a
 
 void peep_set_map_tooltip(rct_peep *peep);
 void sub_693B58(rct_peep* peep);
+void remove_peep_from_ride(rct_peep* peep);
+void remove_peep_from_queue(rct_peep* peep);
+
+void sub_693BE5(rct_peep* peep, uint8 al);
+void peep_update_name_sort(rct_peep *peep);
+void peep_sort();
+void peep_update_names(bool realNames);
+
+money32 set_peep_name(int flags, int state, uint16 sprite_index, uint8* text_1, uint8* text_2, uint8* text_3);
+void game_command_set_guest_name(int *eax, int *ebx, int *ecx, int *edx, int *esi, int *edi, int *ebp);
+
+int peep_pathfind_choose_direction(sint16 x, sint16 y, uint8 z, rct_peep *peep);
+void peep_reset_pathfind_goal(rct_peep *peep);
+
+#if defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
+#define PATHFIND_DEBUG 0 // Set to 0 to disable pathfinding debugging;
+			 // Set to 1 to enable pathfinding debugging.
+// Some variables used for the path finding debugging.
+extern bool gPathFindDebug; // Use to guard calls to log messages
+extern utf8 gPathFindDebugPeepName[256]; // Use to put the peep name in the log message
+
+// The following calls set the above two variables for a peep.
+// ... when PATHFIND_DEBUG is 1 (non zero) 
+void pathfind_logging_enable(rct_peep* peep);
+void pathfind_logging_disable();
+#endif // defined(DEBUG_LEVEL_1) && DEBUG_LEVEL_1
+
+void peep_autoposition(rct_peep *newPeep);
 
 #endif

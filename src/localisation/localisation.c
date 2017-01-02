@@ -1,429 +1,897 @@
+#pragma region Copyright (c) 2014-2016 OpenRCT2 Developers
 /*****************************************************************************
- * Copyright (c) 2014 Ted John
  * OpenRCT2, an open source clone of Roller Coaster Tycoon 2.
  *
- * This file is part of OpenRCT2.
+ * OpenRCT2 is the work of many authors, a full list can be found in contributors.md
+ * For more information, visit https://github.com/OpenRCT2/OpenRCT2
  *
  * OpenRCT2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * A full copy of the GNU General Public License can be found in licence.txt
  *****************************************************************************/
+#pragma endregion
 
+#include "../common.h"
+
+#ifdef __WINDOWS__
 #include <windows.h>
-#include "../addresses.h"
+#else
+#include <iconv.h>
+#include <errno.h>
+#endif // __WINDOWS__
+
 #include "../config.h"
 #include "../game.h"
 #include "../util/util.h"
 #include "date.h"
 #include "localisation.h"
+#include "../management/marketing.h"
 
-#pragma region Format codes
+char gCommonStringFormatBuffer[256];
+uint8 gCommonFormatArgs[80];
+uint8 gMapTooltipFormatArgs[40];
 
-typedef struct {
-	char code;
-	char *token;
-} format_code_token;
+#ifdef DEBUG
+	// Set to true before a string format call to see details of the formatting.
+	// Set to false after the call.
+	bool gDebugStringFormatting = false;
+#endif
 
-format_code_token format_code_tokens[] = {
-	{ FORMAT_MOVE_X,					"MOVE_X"				},
-	{ FORMAT_ADJUST_PALETTE,			"ADJUST_PALETTE"		},
-	{ FORMAT_NEWLINE,					"NEWLINE"				},
-	{ FORMAT_NEWLINE_SMALLER,			"NEWLINE_SMALLER"		},
-	{ FORMAT_TINYFONT,					"TINYFONT"				},
-	{ FORMAT_BIGFONT,					"BIGFONT"				},
-	{ FORMAT_MEDIUMFONT,				"MEDIUMFONT"			},
-	{ FORMAT_SMALLFONT,					"SMALLFONT"				},
-	{ FORMAT_OUTLINE,					"OUTLINE"				},
-	{ FORMAT_OUTLINE_OFF,				"OUTLINE_OFF"			},
-	{ FORMAT_WINDOW_COLOUR_1,			"WINDOW_COLOUR_1"		},
-	{ FORMAT_WINDOW_COLOUR_2,			"WINDOW_COLOUR_2"		},
-	{ FORMAT_WINDOW_COLOUR_3,			"WINDOW_COLOUR_3"		},
-	{ FORMAT_NEWLINE_X_Y,				"NEWLINE_X_Y"			},
-	{ FORMAT_INLINE_SPRITE,				"INLINE_SPRITE"			},
-	{ FORMAT_ENDQUOTES,					"ENDQUOTES"				},
-	{ FORMAT_COMMA32,					"COMMA32"				},
-	{ FORMAT_INT32,						"INT32"					},
-	{ FORMAT_COMMA2DP32,				"COMMA2DP32"			},
-	{ FORMAT_COMMA16,					"COMMA16"				},
-	{ FORMAT_UINT16,					"UINT16"				},
-	{ FORMAT_CURRENCY2DP,				"CURRENCY2DP"			},
-	{ FORMAT_CURRENCY,					"CURRENCY"				},
-	{ FORMAT_STRINGID,					"STRINGID"				},
-	{ FORMAT_STRINGID2,					"STRINGID2"				},
-	{ FORMAT_STRING,					"STRING"				},
-	{ FORMAT_MONTHYEAR,					"MONTHYEAR"				},
-	{ FORMAT_MONTH,						"MONTH"					},
-	{ FORMAT_VELOCITY,					"VELOCITY"				},
-	{ FORMAT_POP16,						"POP16"					},
-	{ FORMAT_PUSH16,					"PUSH16"				},
-	{ FORMAT_DURATION,					"DURATION"				},
-	{ FORMAT_REALTIME,					"REALTIME"				},
-	{ FORMAT_LENGTH,					"LENGTH"				},
-	{ FORMAT_SPRITE,					"SPRITE"				},
-	{ FORMAT_BLACK,						"BLACK"					},
-	{ FORMAT_GREY,						"GREY"					},
-	{ FORMAT_WHITE,						"WHITE"					},
-	{ FORMAT_RED,						"RED"					},
-	{ FORMAT_GREEN,						"GREEN"					},
-	{ FORMAT_YELLOW,					"YELLOW"				},
-	{ FORMAT_TOPAZ,						"TOPAZ"					},
-	{ FORMAT_CELADON,					"CELADON"				},
-	{ FORMAT_BABYBLUE,					"BABYBLUE"				},
-	{ FORMAT_PALELAVENDER,				"PALELAVENDER"			},
-	{ FORMAT_PALEGOLD,					"PALEGOLD"				},
-	{ FORMAT_LIGHTPINK,					"LIGHTPINK"				},
-	{ FORMAT_PEARLAQUA,					"PEARLAQUA"				},
-	{ FORMAT_PALESILVER,				"PALESILVER"			},
-	{ FORMAT_AMINUSCULE,				"AMINUSCULE"			},
-	{ FORMAT_UP,						"UP"					},
-	{ FORMAT_POUND,						"POUND"					},
-	{ FORMAT_YEN,						"YEN"					},
-	{ FORMAT_COPYRIGHT,					"COPYRIGHT"				},
-	{ FORMAT_DOWN,						"DOWN"					},
-	{ FORMAT_LEFTGUILLEMET,				"LEFTGUILLEMET"			},
-	{ FORMAT_TICK,						"TICK"					},
-	{ FORMAT_CROSS,						"CROSS"					},
-	{ FORMAT_RIGHT,						"RIGHT"					},
-	{ FORMAT_DEGREE,					"DEGREE"				},
-	{ FORMAT_SQUARED,					"SQUARED"				},
-	{ FORMAT_OPENQUOTES,				"OPENQUOTES"			},
-	{ FORMAT_EURO,						"EURO"					},
-	{ FORMAT_APPROX,					"APPROX"				},
-	{ FORMAT_POWERNEGATIVEONE,			"POWERNEGATIVEONE"		},
-	{ FORMAT_BULLET,					"BULLET"				},
-	{ FORMAT_RIGHTGUILLEMET,			"RIGHTGUILLEMET"		},
-	{ FORMAT_SMALLUP,					"SMALLUP"				},
-	{ FORMAT_SMALLDOWN,					"SMALLDOWN"				},
-	{ FORMAT_LEFT,						"LEFT"					},
-	{ FORMAT_INVERTEDQUESTION,			"INVERTEDQUESTION"		}
+const rct_string_id SpeedNames[] = {
+	STR_SPEED_NORMAL,
+	STR_SPEED_QUICK,
+	STR_SPEED_FAST,
+	STR_SPEED_TURBO,
+	STR_SPEED_HYPER,
 };
 
-char format_get_code(const char *token)
-{
-	int i;
-	for (i = 0; i < countof(format_code_tokens); i++)
-		if (_strcmpi(token, format_code_tokens[i].token) == 0)
-			return format_code_tokens[i].code;
-	return 0;
+const rct_string_id ObjectiveNames[] = {
+	STR_OBJECTIVE_NONE,
+	STR_OBJECTIVE_GUESTS_BY,
+	STR_OBJECTIVE_PARK_VALUE_BY,
+	STR_OBJECTIVE_HAVE_FUN,
+	STR_OBJECTIVE_BUILD_THE_BEST,
+	STR_OBJECTIVE_10_ROLLERCOASTERS,
+	STR_OBJECTIVE_GUESTS_AND_RATING,
+	STR_OBJECTIVE_MONTHLY_RIDE_INCOME,
+	STR_OBJECTIVE_10_ROLLERCOASTERS_LENGTH,
+	STR_OBJECTIVE_FINISH_5_ROLLERCOASTERS,
+	STR_OBJECTIVE_REPLAY_LOAN_AND_PARK_VALUE,
+	STR_OBJECTIVE_MONTHLY_FOOD_INCOME,
+};
+
+const rct_string_id ResearchFundingLevelNames[] = {
+	STR_RESEARCH_FUNDING_NONE,
+	STR_RESEARCH_FUNDING_MINIMUM,
+	STR_RESEARCH_FUNDING_NORMAL,
+	STR_RESEARCH_FUNDING_MAXIMUM,
+};
+
+const rct_string_id MarketingCampaignNames[ADVERTISING_CAMPAIGN_COUNT][3] = {
+	{ STR_MARKETING_VOUCHERS_FOR_FREE_ENTRY_TO_THE_PARK,			STR_VOUCHERS_FOR_FREE_ENTRY_TO,			STR_MARKETING_FINISHED_FREE_ENTRY }, 		// ADVERTISING_CAMPAIGN_PARK_ENTRY_FREE,
+	{ STR_MARKETING_VOUCHERS_FOR_FREE_RIDES_ON_A_PARTICULAR_RIDE,	STR_VOUCHERS_FOR_FREE_RIDE_ON,			STR_MARKETING_FINISHED_FREE_RIDES },		// ADVERTISING_CAMPAIGN_RIDE_FREE,
+	{ STR_MARKETING_VOUCHERS_FOR_HALF_PRICE_ENTRY_TO_THE_PARK,		STR_VOUCHERS_FOR_HALF_PRICE_ENTRY_TO,	STR_MARKETING_FINISHED_HALF_PRICE_ENTRY },	// ADVERTISING_CAMPAIGN_PARK_ENTRY_HALF_PRICE,
+	{ STR_MARKETING_VOUCHERS_FOR_FREE_FOOD_OR_DRINK,				STR_VOUCHERS_FOR_FREE,					STR_MARKETING_FINISHED_FREE_RIDE },				// ADVERTISING_CAMPAIGN_FOOD_OR_DRINK_FREE,
+	{ STR_MARKETING_ADVERTISING_CAMPAIGN_FOR_THE_PARK,				STR_ADVERTISING_CAMPAIGN_FOR_1,			STR_MARKETING_FINISHED_PARK_ADS },		// ADVERTISING_CAMPAIGN_PARK,
+	{ STR_MARKETING_ADVERTISING_CAMPAIGN_FOR_A_PARTICULAR_RIDE,		STR_ADVERTISING_CAMPAIGN_FOR_2,			STR_MARKETING_FINISHED_RIDE_ADS },		// ADVERTISING_CAMPAIGN_RIDE,
+};
+
+const rct_string_id RideInspectionIntervalNames[] = {
+	STR_EVERY_10_MINUTES,
+	STR_EVERY_20_MINUTES,
+	STR_EVERY_30_MINUTES,
+	STR_EVERY_45_MINUTES,
+	STR_EVERY_HOUR,
+	STR_EVERY_2_HOURS,
+	STR_NEVER,
+	RIDE_SETTING_INSPECTION_INTERVAL
+};
+
+const rct_string_id PeepThoughts[] = {
+	STR_PEEP_THOUGHT_TYPE_CANT_AFFORD_0,
+	STR_PEEP_THOUGHT_TYPE_SPENT_MONEY,
+	STR_PEEP_THOUGHT_TYPE_SICK,
+	STR_PEEP_THOUGHT_TYPE_VERY_SICK,
+	STR_PEEP_THOUGHT_TYPE_MORE_THRILLING,
+	STR_PEEP_THOUGHT_TYPE_INTENSE,
+	STR_PEEP_THOUGHT_TYPE_HAVENT_FINISHED,
+	STR_PEEP_THOUGHT_TYPE_SICKENING,
+	STR_PEEP_THOUGHT_TYPE_BAD_VALUE,
+	STR_PEEP_THOUGHT_TYPE_GO_HOME,
+	STR_PEEP_THOUGHT_TYPE_GOOD_VALUE,
+	STR_PEEP_THOUGHT_TYPE_ALREADY_GOT,
+	STR_PEEP_THOUGHT_TYPE_CANT_AFFORD,
+	STR_PEEP_THOUGHT_TYPE_NOT_HUNGRY,
+	STR_PEEP_THOUGHT_TYPE_NOT_THIRSTY,
+	STR_PEEP_THOUGHT_TYPE_DROWNING,
+	STR_PEEP_THOUGHT_TYPE_LOST,
+	STR_PEEP_THOUGHT_TYPE_WAS_GREAT,
+	STR_PEEP_THOUGHT_TYPE_QUEUING_AGES,
+	STR_PEEP_THOUGHT_TYPE_TIRED,
+	STR_PEEP_THOUGHT_TYPE_HUNGRY,
+	STR_PEEP_THOUGHT_TYPE_THIRSTY,
+	STR_PEEP_THOUGHT_TYPE_BATHROOM,
+	STR_PEEP_THOUGHT_TYPE_CANT_FIND,
+	STR_PEEP_THOUGHT_TYPE_NOT_PAYING,
+	STR_PEEP_THOUGHT_TYPE_NOT_WHILE_RAINING,
+	STR_PEEP_THOUGHT_TYPE_BAD_LITTER,
+	STR_PEEP_THOUGHT_TYPE_CANT_FIND_EXIT,
+	STR_PEEP_THOUGHT_TYPE_GET_OFF,
+	STR_PEEP_THOUGHT_TYPE_GET_OUT,
+	STR_PEEP_THOUGHT_TYPE_NOT_SAFE,
+	STR_PEEP_THOUGHT_TYPE_PATH_DISGUSTING,
+	STR_PEEP_THOUGHT_TYPE_CROWDED,
+	STR_PEEP_THOUGHT_TYPE_VANDALISM,
+	STR_PEEP_THOUGHT_TYPE_SCENERY,
+	STR_PEEP_THOUGHT_TYPE_VERY_CLEAN,
+	STR_PEEP_THOUGHT_TYPE_FOUNTAINS,
+	STR_PEEP_THOUGHT_TYPE_MUSIC,
+	STR_PEEP_THOUGHT_TYPE_BALLOON,
+	STR_PEEP_THOUGHT_TYPE_TOY,
+	STR_PEEP_THOUGHT_TYPE_MAP,
+	STR_PEEP_THOUGHT_TYPE_PHOTO,
+	STR_PEEP_THOUGHT_TYPE_UMBRELLA,
+	STR_PEEP_THOUGHT_TYPE_DRINK,
+	STR_PEEP_THOUGHT_TYPE_BURGER,
+	STR_PEEP_THOUGHT_TYPE_FRIES,
+	STR_PEEP_THOUGHT_TYPE_ICE_CREAM,
+	STR_PEEP_THOUGHT_TYPE_COTTON_CANDY,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_PIZZA,
+	0,
+	STR_PEEP_THOUGHT_TYPE_POPCORN,
+	STR_PEEP_THOUGHT_TYPE_HOT_DOG,
+	STR_PEEP_THOUGHT_TYPE_TENTACLE,
+	STR_PEEP_THOUGHT_TYPE_HAT,
+	STR_PEEP_THOUGHT_TYPE_CANDY_APPLE,
+	STR_PEEP_THOUGHT_TYPE_TSHIRT,
+	STR_PEEP_THOUGHT_TYPE_DONUT,
+	STR_PEEP_THOUGHT_TYPE_COFFEE,
+	0,
+	STR_PEEP_THOUGHT_TYPE_CHICKEN,
+	STR_PEEP_THOUGHT_TYPE_LEMONADE,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_WOW,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_WOW2,
+	STR_PEEP_THOUGHT_TYPE_WATCHED,
+	STR_PEEP_THOUGHT_TYPE_BALLOON_MUCH,
+	STR_PEEP_THOUGHT_TYPE_TOY_MUCH,
+	STR_PEEP_THOUGHT_TYPE_MAP_MUCH,
+	STR_PEEP_THOUGHT_TYPE_PHOTO_MUCH,
+	STR_PEEP_THOUGHT_TYPE_UMBRELLA_MUCH,
+	STR_PEEP_THOUGHT_TYPE_DRINK_MUCH,
+	STR_PEEP_THOUGHT_TYPE_BURGER_MUCH,
+	STR_PEEP_THOUGHT_TYPE_FRIES_MUCH,
+	STR_PEEP_THOUGHT_TYPE_ICE_CREAM_MUCH,
+	STR_PEEP_THOUGHT_TYPE_COTTON_CANDY_MUCH,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_PIZZA_MUCH,
+	0,
+	STR_PEEP_THOUGHT_TYPE_POPCORN_MUCH,
+	STR_PEEP_THOUGHT_TYPE_HOT_DOG_MUCH,
+	STR_PEEP_THOUGHT_TYPE_TENTACLE_MUCH,
+	STR_PEEP_THOUGHT_TYPE_HAT_MUCH,
+	STR_PEEP_THOUGHT_TYPE_CANDY_APPLE_MUCH,
+	STR_PEEP_THOUGHT_TYPE_TSHIRT_MUCH,
+	STR_PEEP_THOUGHT_TYPE_DONUT_MUCH,
+	STR_PEEP_THOUGHT_TYPE_COFFEE_MUCH,
+	0,
+	STR_PEEP_THOUGHT_TYPE_CHICKEN_MUCH,
+	STR_PEEP_THOUGHT_TYPE_LEMONADE_MUCH,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_PHOTO2,
+	STR_PEEP_THOUGHT_TYPE_PHOTO3,
+	STR_PEEP_THOUGHT_TYPE_PHOTO4,
+	STR_PEEP_THOUGHT_TYPE_PRETZEL,
+	STR_PEEP_THOUGHT_TYPE_HOT_CHOCOLATE,
+	STR_PEEP_THOUGHT_TYPE_ICED_TEA,
+	STR_PEEP_THOUGHT_TYPE_FUNNEL_CAKE,
+	STR_PEEP_THOUGHT_TYPE_SUNGLASSES,
+	STR_PEEP_THOUGHT_TYPE_BEEF_NOODLES,
+	STR_PEEP_THOUGHT_TYPE_FRIED_RICE_NOODLES,
+	STR_PEEP_THOUGHT_TYPE_WONTON_SOUP,
+	STR_PEEP_THOUGHT_TYPE_MEATBALL_SOUP,
+	STR_PEEP_THOUGHT_TYPE_FRUIT_JUICE,
+	STR_PEEP_THOUGHT_TYPE_SOYBEAN_MILK,
+	STR_PEEP_THOUGHT_TYPE_SU_JONGKWA,
+	STR_PEEP_THOUGHT_TYPE_SUB_SANDWICH,
+	STR_PEEP_THOUGHT_TYPE_COOKIE,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_ROAST_SAUSAGE,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_PHOTO2_MUCH,
+	STR_PEEP_THOUGHT_TYPE_PHOTO3_MUCH,
+	STR_PEEP_THOUGHT_TYPE_PHOTO4_MUCH,
+	STR_PEEP_THOUGHT_TYPE_PRETZEL_MUCH,
+	STR_PEEP_THOUGHT_TYPE_HOT_CHOCOLATE_MUCH,
+	STR_PEEP_THOUGHT_TYPE_ICED_TEA_MUCH,
+	STR_PEEP_THOUGHT_TYPE_FUNNEL_CAKE_MUCH,
+	STR_PEEP_THOUGHT_TYPE_SUNGLASSES_MUCH,
+	STR_PEEP_THOUGHT_TYPE_BEEF_NOODLES_MUCH,
+	STR_PEEP_THOUGHT_TYPE_FRIED_RICE_NOODLES_MUCH,
+	STR_PEEP_THOUGHT_TYPE_WONTON_SOUP_MUCH,
+	STR_PEEP_THOUGHT_TYPE_MEATBALL_SOUP_MUCH,
+	STR_PEEP_THOUGHT_TYPE_FRUIT_JUICE_MUCH,
+	STR_PEEP_THOUGHT_TYPE_SOYBEAN_MILK_MUCH,
+	STR_PEEP_THOUGHT_TYPE_SU_JONGKWA_MUCH,
+	STR_PEEP_THOUGHT_TYPE_SUB_SANDWICH_MUCH,
+	STR_PEEP_THOUGHT_TYPE_COOKIE_MUCH,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_ROAST_SAUSAGE_MUCH,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	STR_PEEP_THOUGHT_TYPE_HELP,
+	STR_PEEP_THOUGHT_TYPE_RUNNING_OUT,
+	STR_PEEP_THOUGHT_TYPE_NEW_RIDE,
+	STR_PEEP_THOUGHT_TYPE_NICE_RIDE_DEPRECATED,
+	STR_PEEP_THOUGHT_TYPE_EXCITED_DEPRECATED,
+	STR_PEEP_THOUGHT_TYPE_HERE_WE_ARE,
+};
+
+const rct_string_id DateDayNames[] = {
+	STR_DATE_DAY_1,
+	STR_DATE_DAY_2,
+	STR_DATE_DAY_3,
+	STR_DATE_DAY_4,
+	STR_DATE_DAY_5,
+	STR_DATE_DAY_6,
+	STR_DATE_DAY_7,
+	STR_DATE_DAY_8,
+	STR_DATE_DAY_9,
+	STR_DATE_DAY_10,
+	STR_DATE_DAY_11,
+	STR_DATE_DAY_12,
+	STR_DATE_DAY_13,
+	STR_DATE_DAY_14,
+	STR_DATE_DAY_15,
+	STR_DATE_DAY_16,
+	STR_DATE_DAY_17,
+	STR_DATE_DAY_18,
+	STR_DATE_DAY_19,
+	STR_DATE_DAY_20,
+	STR_DATE_DAY_21,
+	STR_DATE_DAY_22,
+	STR_DATE_DAY_23,
+	STR_DATE_DAY_24,
+	STR_DATE_DAY_25,
+	STR_DATE_DAY_26,
+	STR_DATE_DAY_27,
+	STR_DATE_DAY_28,
+	STR_DATE_DAY_29,
+	STR_DATE_DAY_30,
+	STR_DATE_DAY_31,
+};
+
+const rct_string_id DateGameMonthNames[MONTH_COUNT] = {
+	STR_MONTH_MARCH,
+	STR_MONTH_APRIL,
+	STR_MONTH_MAY,
+	STR_MONTH_JUNE,
+	STR_MONTH_JULY,
+	STR_MONTH_AUGUST,
+	STR_MONTH_SEPTEMBER,
+	STR_MONTH_OCTOBER,
+};
+
+const rct_string_id DateGameShortMonthNames[MONTH_COUNT] = {
+	STR_MONTH_SHORT_MAR,
+	STR_MONTH_SHORT_APR,
+	STR_MONTH_SHORT_MAY,
+	STR_MONTH_SHORT_JUN,
+	STR_MONTH_SHORT_JUL,
+	STR_MONTH_SHORT_AUG,
+	STR_MONTH_SHORT_SEP,
+	STR_MONTH_SHORT_OCT,
+};
+
+#define format_push_char_safe(C) { *(*dest)++ = (C); --(*size); }
+#define format_handle_overflow(X) if ((*size) <= (X)) { *(*dest) = '\0'; (*size) = 0; return; }
+#define format_push_char(C) { format_handle_overflow(1); format_push_char_safe(C); }
+
+#define format_push_wrap(C) { *ncur = (C); if (ncur == (*dest)) ncur = nbegin; }
+#define reverse_string() while (nbegin < nend) { tmp = *nbegin; *nbegin++ = *nend; *nend-- = tmp; }
+
+static void format_string_part_from_raw(char **dest, size_t *size, const char *src, char **args);
+static void format_string_part(char **dest, size_t *size, rct_string_id format, char **args);
+
+static void format_append_string(char **dest, size_t *size, const utf8 *string) {
+	if ((*size) == 0) return;
+	size_t length = strlen(string);
+	if (length < (*size)) {
+		memcpy((*dest), string, length);
+		(*dest) += length;
+		(*size) -= length;
+	} else {
+		memcpy((*dest), string, (*size) - 1);
+		(*dest) += (*size) - 1;
+		*(*dest)++ = '\0';
+		(*size) = 0;
+	}
 }
 
-const char *format_get_token(char code)
-{
-	int i;
-	for (i = 0; i < countof(format_code_tokens); i++)
-		if (code == format_code_tokens[i].code)
-			return format_code_tokens[i].token;
-	return 0;
+static void format_append_string_n(char **dest, size_t *size, const utf8 *string, size_t maxlen) {
+	if ((*size) == 0) return;
+	size_t length = min(maxlen, strlen(string));
+	if (length < (*size)) {
+		memcpy((*dest), string, length);
+		(*dest) += length;
+		(*size) -= length;
+	} else {
+		memcpy((*dest), string, (*size) - 1);
+		(*dest) += (*size) - 1;
+		*(*dest)++ = '\0';
+		(*size) = 0;
+	}
 }
 
-#pragma endregion
-
-void format_string_part_from_raw(char **dest, const char *src, char **args);
-void format_string_part(char **dest, rct_string_id format, char **args);
-
-void format_integer(char **dest, long long value)
+static void format_integer(char **dest, size_t *size, long long value)
 {
 	int digit;
-	char *dst = *dest;
-	char *finish;
+	char *nbegin, *nend, *ncur;
 	char tmp;
+
+	if ((*size) == 0) return;
 
 	// Negative sign
 	if (value < 0) {
-		*dst++ = '-';
+		format_push_char('-');
 		value = -value;
 	}
 
-	*dest = dst;
-
 	if (value == 0) {
-		*dst++ = '0';
-	} else {
-		// Right to left
+		format_push_char('0');
+		return;
+	}
+
+	nbegin = (*dest);
+
+	// Right to left
+	while (value > 0 && (*size) > 1) {
+		digit = value % 10;
+		value /= 10;
+
+		format_push_char_safe('0' + digit);
+	}
+
+	if (value > 0) {
+		ncur = nbegin;
+
 		while (value > 0) {
 			digit = value % 10;
 			value /= 10;
 
-			*dst++ = '0' + digit;
+			format_push_wrap('0' + digit);
 		}
-	}
-	finish = dst;
 
-	// Reverse string
-	dst--;
-	while (*dest < dst) {
-		tmp = **dest;
-		**dest = *dst;
-		*dst = tmp;
-		(*dest)++;
-		dst--;
+		// Reverse first half of string
+		nend = ncur - 1;
+		reverse_string();
+
+		// Reverse second half of string
+		nbegin = ncur;
+		nend = (*dest) - 1;
+		reverse_string();
+
+		format_push_char_safe('\0'); // truncate overflowed string
+	} else {
+		// Reverse string
+		nend = (*dest) - 1;
+		reverse_string();
 	}
-	*dest = finish;
 }
 
-void format_comma_separated_integer(char **dest, long long value)
+static void format_comma_separated_integer(char **dest, size_t *size, long long value)
 {
 	int digit, groupIndex;
-	char *dst = *dest;
-	char *finish;
+	char *nbegin, *nend, *ncur;
 	char tmp;
+	const char *commaMark = language_get_string(STR_LOCALE_THOUSANDS_SEPARATOR);
+	const char *ch = NULL;
+
+	if ((*size) == 0) return;
 
 	// Negative sign
 	if (value < 0) {
-		*dst++ = '-';
+		format_push_char('-');
 		value = -value;
 	}
 
-	*dest = dst;
-
 	if (value == 0) {
-		*dst++ = '0';
-	} else {
-		// Groups of three digits, right to left
-		groupIndex = 0;
-		while (value > 0) {
-			// Append group seperator
-			if (groupIndex == 3) {
-				groupIndex = 0;
-				*dst++ = ',';
-			}
+		format_push_char('0');
+		return;
+	}
 
+	nbegin = *dest;
+
+	// Groups of three digits, right to left
+	groupIndex = 0;
+	while (value > 0 && (*size) > 1) {
+		// Append group separator
+		if (groupIndex == 3) {
+			groupIndex = 0;
+			ch = commaMark;
+		}
+
+		if (ch != NULL ) {
+			format_push_char_safe(*ch++);
+			if (*ch == '\0') ch = NULL;
+		} else {
 			digit = value % 10;
 			value /= 10;
 
-			*dst++ = '0' + digit;
+			format_push_char_safe('0' + digit);
 			groupIndex++;
 		}
 	}
-	finish = dst;
 
-	// Reverse string
-	dst--;
-	while (*dest < dst) {
-		tmp = **dest;
-		**dest = *dst;
-		*dst = tmp;
-		(*dest)++;
-		dst--;
+	if (value > 0) {
+		ncur = nbegin;
+
+		while (value > 0) {
+			// Append group separator
+			if (groupIndex == 3) {
+				groupIndex = 0;
+				ch = commaMark;
+			}
+
+			if (ch != NULL ) {
+				format_push_wrap(*ch++);
+				if (*ch == '\0') ch = NULL;
+			} else {
+				digit = value % 10;
+				value /= 10;
+
+				format_push_wrap('0' + digit);
+				groupIndex++;
+			}
+		}
+
+		// Reverse first half of string
+		nend = ncur - 1;
+		reverse_string();
+
+		// Reverse second half of string
+		nbegin = ncur;
+		nend = (*dest) - 1;
+		reverse_string();
+
+		format_push_char_safe('\0'); // truncate overflowed string
+	} else {
+		// Reverse string
+		nend = *dest - 1;
+		reverse_string();
 	}
-	*dest = finish;
 }
 
-void format_comma_separated_fixed_2dp(char **dest, long long value)
+static void format_comma_separated_fixed_1dp(char **dest, size_t *size, long long value)
 {
 	int digit, groupIndex;
-	char *dst = *dest;
-	char *finish;
+	char *nbegin, *nend, *ncur;
 	char tmp;
+	const char *commaMark = language_get_string(STR_LOCALE_THOUSANDS_SEPARATOR);
+	const char *decimalMark = language_get_string(STR_LOCALE_DECIMAL_POINT);
+	const char *ch = NULL;
+	int zeroNeeded = 1;
+
+	if ((*size) == 0) return;
 
 	// Negative sign
 	if (value < 0) {
-		*dst++ = '-';
+		format_push_char('-');
 		value = -value;
 	}
 
-	*dest = dst;
+	nbegin = (*dest);
 
-	// Two decimal places
-	digit = value % 10;
+	// In the case of buffers this small,
+	// all of this would be truncated anyways.
+	format_handle_overflow(1);
+	if ((*size) > 2) {
+		// One decimal place
+		digit = value % 10;
+		format_push_char_safe('0' + digit);
+
+		ch = decimalMark;
+	}
 	value /= 10;
-	*dst++ = '0' + digit;
-	digit = value % 10;
-	value /= 10;
-	*dst++ = '0' + digit;
-	*dst++ = '.';
 
-	if (value == 0) {
-		*dst++ = '0';
-	} else {
-		// Groups of three digits, right to left
-		groupIndex = 0;
-		while (value > 0) {
-			// Append group seperator
-			if (groupIndex == 3) {
-				groupIndex = 0;
-				*dst++ = ',';
-			}
+	groupIndex = 0;
+	while ((zeroNeeded || value > 0) && (*size) > 1) {
+		// Append group separator
+		if (groupIndex == 3) {
+			groupIndex = 0;
+			ch = commaMark;
+		}
 
+		if (ch != NULL ) {
+			format_push_char_safe(*ch++);
+			if (*ch == '\0') ch = NULL;
+		} else {
+			zeroNeeded = 0;
 			digit = value % 10;
 			value /= 10;
 
-			*dst++ = '0' + digit;
+			format_push_char_safe('0' + digit);
 			groupIndex++;
 		}
 	}
-	finish = dst;
 
-	// Reverse string
-	dst--;
-	while (*dest < dst) {
-		tmp = **dest;
-		**dest = *dst;
-		*dst = tmp;
-		(*dest)++;
-		dst--;
+	if (zeroNeeded || value > 0) {
+		ncur = nbegin;
+
+		while (zeroNeeded || value > 0) {
+			// Append group separator
+			if (groupIndex == 3) {
+				groupIndex = 0;
+				ch = commaMark;
+			}
+
+			if (ch != NULL ) {
+				format_push_wrap(*ch++);
+				if (*ch == '\0') ch = NULL;
+			} else {
+				zeroNeeded = 0;
+				digit = value % 10;
+				value /= 10;
+
+				format_push_wrap('0' + digit);
+				groupIndex++;
+			}
+		}
+
+		// Reverse first half of string
+		nend = ncur - 1;
+		reverse_string();
+
+		// Reverse second half of string
+		nbegin = ncur;
+		nend = (*dest) - 1;
+		reverse_string();
+
+		format_push_char_safe('\0'); // truncate overflowed string
+	} else {
+		// Reverse string
+		nend = *dest - 1;
+		reverse_string();
 	}
-	*dest = finish;
 }
 
-void format_currency(char **dest, long long value)
+static void format_comma_separated_fixed_2dp(char **dest, size_t *size, long long value)
 {
-	const rct_currency_spec *currencySpec = &g_currency_specs[gConfigGeneral.currency_format];
+	int digit, groupIndex;
+	char *nbegin, *nend, *ncur;
+	char tmp;
+	const char *commaMark = language_get_string(STR_LOCALE_THOUSANDS_SEPARATOR);
+	const char *decimalMark = language_get_string(STR_LOCALE_DECIMAL_POINT);
+	const char *ch = NULL;
+	int zeroNeeded = 1;
 
-	int rate = currencySpec->rate;
-	value *= rate;
+	if ((*size) == 0) return;
 
 	// Negative sign
 	if (value < 0) {
-		*(*dest)++ = '-';
+		format_push_char('-');
 		value = -value;
 	}
+
+	nbegin = (*dest);
+
+	// In the case of buffers this small,
+	// all of this would be truncated anyways.
+	format_handle_overflow(1);
+	if ((*size) < 3) {
+		value /= 100;
+	} else {
+		// Two decimal places
+		digit = value % 10;
+		value /= 10;
+		format_push_char_safe('0' + digit);
+
+		digit = value % 10;
+		value /= 10;
+		format_push_char_safe('0' + digit);
+
+		ch = decimalMark;
+	}
+
+	groupIndex = 0;
+	while ((zeroNeeded || value > 0) && (*size) > 1) {
+		// Append group separator
+		if (groupIndex == 3) {
+			groupIndex = 0;
+			ch = commaMark;
+		}
+
+		if (ch != NULL ) {
+			format_push_char_safe(*ch++);
+			if (*ch == '\0') ch = NULL;
+		} else {
+			zeroNeeded = 0;
+			digit = value % 10;
+			value /= 10;
+
+			format_push_char_safe('0' + digit);
+			groupIndex++;
+		}
+	}
+
+	if (zeroNeeded || value > 0) {
+		ncur = nbegin;
+
+		while (zeroNeeded || value > 0) {
+			// Append group separator
+			if (groupIndex == 3) {
+				groupIndex = 0;
+				ch = commaMark;
+			}
+
+			if (ch != NULL ) {
+				format_push_wrap(*ch++);
+				if (*ch == '\0') ch = NULL;
+			} else {
+				zeroNeeded = 0;
+				digit = value % 10;
+				value /= 10;
+
+				format_push_wrap('0' + digit);
+				groupIndex++;
+			}
+		}
+
+		// Reverse first half of string
+		nend = ncur - 1;
+		reverse_string();
+
+		// Reverse second half of string
+		nbegin = ncur;
+		nend = (*dest) - 1;
+		reverse_string();
+
+		format_push_char_safe('\0'); // truncate overflowed string
+	} else {
+		// Reverse string
+		nend = *dest - 1;
+		reverse_string();
+	}
+}
+
+static void format_currency(char **dest, size_t *size, long long value)
+{
+	if ((*size) == 0) return;
+
+	const currency_descriptor *currencyDesc = &CurrencyDescriptors[gConfigGeneral.currency_format];
+
+	value *= currencyDesc->rate;
+
+	// Negative sign
+	if (value < 0) {
+		format_push_char('-');
+		value = -value;
+	}
+
+	//Round the value away from zero
+	value = (value + 99) / 100;
 
 	// Currency symbol
-	const char *symbol = currencySpec->symbol;
-
-	// Prefix
-	if (currencySpec->affix == CURRENCY_PREFIX) {
-		strcpy(*dest, symbol);
-		*dest += strlen(*dest);
+	const utf8 *symbol = currencyDesc->symbol_unicode;
+	uint8 affix = currencyDesc->affix_unicode;
+	if (!font_supports_string(symbol, FONT_SIZE_MEDIUM)) {
+		symbol = currencyDesc->symbol_ascii;
+		affix = currencyDesc->affix_ascii;
 	}
 
-	// Divide by 100 to get rid of the pennies
-	format_comma_separated_integer(dest, value / 100);
+	// Prefix
+	if (affix == CURRENCY_PREFIX)
+		format_append_string(dest, size, symbol);
+	if ((*size) == 0) return;
+
+	format_comma_separated_integer(dest, size, value);
+	if ((*size) == 0) return;
 
 	// Currency symbol suffix
-	if (currencySpec->affix == CURRENCY_SUFFIX) {
-		strcpy(*dest, symbol);
-		*dest += strlen(*dest);
-	}
+	if (affix == CURRENCY_SUFFIX)
+		format_append_string(dest, size, symbol);
 }
 
-void format_currency_2dp(char **dest, long long value)
+static void format_currency_2dp(char **dest, size_t *size, long long value)
 {
-	const rct_currency_spec *currencySpec = &g_currency_specs[gConfigGeneral.currency_format];
+	if ((*size) == 0) return;
 
-	int rate = currencySpec->rate;
+	const currency_descriptor *currencyDesc = &CurrencyDescriptors[gConfigGeneral.currency_format];
+
+	int rate = currencyDesc->rate;
 	value *= rate;
 
 	// Negative sign
 	if (value < 0) {
-		*(*dest)++ = '-';
+		format_push_char('-');
 		value = -value;
 	}
 
 	// Currency symbol
-	const char *symbol = currencySpec->symbol;
+	const utf8 *symbol = currencyDesc->symbol_unicode;
+	uint8 affix = currencyDesc->affix_unicode;
+	if (!font_supports_string(symbol, FONT_SIZE_MEDIUM)) {
+		symbol = currencyDesc->symbol_ascii;
+		affix = currencyDesc->affix_ascii;
+	}
 
 	// Prefix
-	if (currencySpec->affix == CURRENCY_PREFIX) {
-		strcpy(*dest, symbol);
-		*dest += strlen(*dest);
-	}
+	if (affix == CURRENCY_PREFIX)
+		format_append_string(dest, size, symbol);
+	if ((*size) == 0) return;
 
 	// Drop the pennies for "large" currencies
-	if (rate > 10) {
-		format_comma_separated_integer(dest, value / 100);
+	if (rate >= 100) {
+		format_comma_separated_integer(dest, size, value / 100);
 	} else {
-		format_comma_separated_fixed_2dp(dest, value);
+		format_comma_separated_fixed_2dp(dest, size, value);
 	}
+	if ((*size) == 0) return;
 
 	// Currency symbol suffix
-	if (currencySpec->affix == CURRENCY_SUFFIX) {
-		strcpy(*dest, symbol);
-		*dest += strlen(*dest);
-	}
+	if (affix == CURRENCY_SUFFIX)
+		format_append_string(dest, size, symbol);
 }
 
-void format_date(char **dest, uint16 value)
+static void format_date(char **dest, size_t *size, uint16 value)
 {
 	uint16 args[] = { date_get_month(value), date_get_year(value) + 1 };
 	uint16 *argsRef = args;
-	format_string_part(dest, 2736, (char**)&argsRef);
-	(*dest)--;
+	format_string_part(dest, size, STR_DATE_FORMAT_MY, (char**)&argsRef);
 }
 
-void format_length(char **dest, uint16 value)
+static void format_length(char **dest, size_t *size, sint16 value)
 {
-	rct_string_id stringId = 2733;
+	rct_string_id stringId = STR_UNIT_SUFFIX_METRES;
 
 	if (gConfigGeneral.measurement_format == MEASUREMENT_FORMAT_IMPERIAL) {
 		value = metres_to_feet(value);
-		stringId--;
+		stringId = STR_UNIT_SUFFIX_FEET;
 	}
 
-	uint16 *argRef = &value;
-	format_string_part(dest, stringId, (char**)&argRef);
+	sint16 *argRef = &value;
+	format_string_part(dest, size, stringId, (char**)&argRef);
 }
 
-void format_velocity(char **dest, uint16 value)
+static void format_velocity(char **dest, size_t *size, uint16 value)
 {
-	rct_string_id stringId = 2734;
+	rct_string_id stringId;
 
-	if (gConfigGeneral.measurement_format == MEASUREMENT_FORMAT_METRIC) {
+	switch (gConfigGeneral.measurement_format) {
+	default:
+		stringId = STR_UNIT_SUFFIX_MILES_PER_HOUR;
+		break;
+	case MEASUREMENT_FORMAT_METRIC:
 		value = mph_to_kmph(value);
-		stringId++;
+		stringId = STR_UNIT_SUFFIX_KILOMETRES_PER_HOUR;
+		break;
+	case MEASUREMENT_FORMAT_SI:
+		value = mph_to_dmps(value);
+		stringId = STR_UNIT_SUFFIX_METRES_PER_SECOND;
+		break;
 	}
 
 	uint16 *argRef = &value;
-	format_string_part(dest, stringId, (char**)&argRef);
+	format_string_part(dest, size, stringId, (char**)&argRef);
 }
 
-void format_duration(char **dest, uint16 value)
+static const rct_string_id DurationFormats[][2] = {
+	{STR_DURATION_SEC,      STR_DURATION_SECS},
+	{STR_DURATION_MIN_SEC,  STR_DURATION_MIN_SECS},
+	{STR_DURATION_MINS_SEC, STR_DURATION_MINS_SECS},
+};
+
+static void format_duration(char **dest, size_t *size, uint16 value)
 {
 	uint16 minutes = value / 60;
 	uint16 seconds = value % 60;
 	uint16 args[] = { minutes, seconds };
 	uint16 *argsRef = &args[1];
-	rct_string_id stringId = 2720;
 
+	int minuteIndex = 0;
 	if (minutes > 0) {
-		stringId += 2;
-		if (minutes != 1)
-			stringId += 2;
+		minuteIndex = 1;
+		if (minutes != 1) {
+			minuteIndex = 2;
+		}
 
 		argsRef--;
 	}
 
-	if (seconds != 1)
-		stringId++;
+	int secondsIndex = 0;
+	if (seconds != 1) {
+		secondsIndex = 1;
+	}
 
-	format_string_part(dest, stringId, (char**)&argsRef);
+	rct_string_id stringId = DurationFormats[minuteIndex][secondsIndex];
+
+	format_string_part(dest, size, stringId, (char**)&argsRef);
 }
 
-void format_realtime(char **dest, uint16 value)
+static const rct_string_id RealtimeFormats[][2] = {
+	{STR_REALTIME_MIN,       STR_REALTIME_MINS},
+	{STR_REALTIME_HOUR_MIN,  STR_REALTIME_HOUR_MINS},
+	{STR_REALTIME_HOURS_MIN, STR_REALTIME_HOURS_MINS},
+};
+
+static void format_realtime(char **dest, size_t *size, uint16 value)
 {
 	uint16 hours = value / 60;
 	uint16 minutes = value % 60;
 	uint16 args[] = { hours, minutes };
 	uint16 *argsRef = &args[1];
-	rct_string_id stringId = 2726;
 
+	int hourIndex = 0;
 	if (hours > 0) {
-		stringId += 2;
-		if (hours != 1)
-			stringId += 2;
+		hourIndex = 1;
+		if (hours != 1) {
+			hourIndex = 2;
+		}
 
 		argsRef--;
 	}
 
-	if (minutes != 1)
-		stringId++;
+	int minuteIndex = 0;
+	if (minutes != 1) {
+		minuteIndex = 1;
+	}
 
-	format_string_part(dest, stringId, (char**)&argsRef);
+	rct_string_id stringId = RealtimeFormats[hourIndex][minuteIndex];
+
+	format_string_part(dest, size, stringId, (char**)&argsRef);
 }
 
-void format_string_code(unsigned char format_code, char **dest, char **args)
+static void format_string_code(unsigned int format_code, char **dest, size_t *size, char **args)
 {
-	int value;
+	intptr_t value;
+
+	if ((*size) == 0) return;
+
+#ifdef DEBUG
+	if (gDebugStringFormatting) {
+		printf("format_string_code(\"%s\")\n", format_get_token(format_code));
+	}
+#endif
 
 	switch (format_code) {
 	case FORMAT_COMMA32:
@@ -431,49 +899,56 @@ void format_string_code(unsigned char format_code, char **dest, char **args)
 		value = *((sint32*)*args);
 		*args += 4;
 
-		format_comma_separated_integer(dest, value);
+		format_comma_separated_integer(dest, size, value);
 		break;
 	case FORMAT_INT32:
 		// Pop argument
 		value = *((sint32*)*args);
 		*args += 4;
 
-		format_integer(dest, value);
+		format_integer(dest, size, value);
 		break;
 	case FORMAT_COMMA2DP32:
 		// Pop argument
 		value = *((sint32*)*args);
 		*args += 4;
 
-		format_comma_separated_fixed_2dp(dest, value);
+		format_comma_separated_fixed_2dp(dest, size, value);
+		break;
+	case FORMAT_COMMA1DP16:
+		// Pop argument
+		value = *((sint16*)*args);
+		*args += 2;
+
+		format_comma_separated_fixed_1dp(dest, size, value);
 		break;
 	case FORMAT_COMMA16:
 		// Pop argument
 		value = *((sint16*)*args);
 		*args += 2;
 
-		format_comma_separated_integer(dest, value);
+		format_comma_separated_integer(dest, size, value);
 		break;
 	case FORMAT_UINT16:
 		// Pop argument
 		value = *((uint16*)*args);
 		*args += 2;
 
-		format_integer(dest, value);
+		format_integer(dest, size, value);
 		break;
 	case FORMAT_CURRENCY2DP:
 		// Pop argument
 		value = *((sint32*)*args);
 		*args += 4;
 
-		format_currency_2dp(dest, value);
+		format_currency_2dp(dest, size, value);
 		break;
 	case FORMAT_CURRENCY:
 		// Pop argument
 		value = *((sint32*)*args);
 		*args += 4;
 
-		format_currency(dest, value);
+		format_currency(dest, size, value);
 		break;
 	case FORMAT_STRINGID:
 	case FORMAT_STRINGID2:
@@ -481,38 +956,36 @@ void format_string_code(unsigned char format_code, char **dest, char **args)
 		value = *((uint16*)*args);
 		*args += 2;
 
-		format_string_part(dest, value, args);
-		(*dest)--;
+		format_string_part(dest, size, (rct_string_id)value, args);
 		break;
 	case FORMAT_STRING:
 		// Pop argument
-		value = *((uint32*)*args);
-		*args += 4;
+		value = *((uintptr_t*)*args);
+		*args += sizeof(uintptr_t);
 
-		strcpy(*dest, (char*)value);
-		*dest += strlen(*dest);
+		if (value != 0)
+			format_append_string(dest, size, (char*)value);
 		break;
 	case FORMAT_MONTHYEAR:
 		// Pop argument
 		value = *((uint16*)*args);
 		*args += 2;
 
-		format_date(dest, value);
+		format_date(dest, size, (uint16)value);
 		break;
 	case FORMAT_MONTH:
 		// Pop argument
 		value = *((uint16*)*args);
 		*args += 2;
 
-		strcpy(*dest, language_get_string(STR_MONTH_MARCH + date_get_month(value)));
-		*dest += strlen(*dest);
+		format_append_string(dest, size, language_get_string(DateGameMonthNames[date_get_month((int)value)]));
 		break;
 	case FORMAT_VELOCITY:
 		// Pop argument
 		value = *((sint16*)*args);
 		*args += 2;
 
-		format_velocity(dest, value);
+		format_velocity(dest, size, (uint16)value);
 		break;
 	case FORMAT_POP16:
 		*args += 2;
@@ -525,76 +998,95 @@ void format_string_code(unsigned char format_code, char **dest, char **args)
 		value = *((uint16*)*args);
 		*args += 2;
 
-		format_duration(dest, value);
+		format_duration(dest, size, (uint16)value);
 		break;
 	case FORMAT_REALTIME:
 		// Pop argument
 		value = *((uint16*)*args);
 		*args += 2;
 
-		format_realtime(dest, value);
+		format_realtime(dest, size, (uint16)value);
 		break;
 	case FORMAT_LENGTH:
 		// Pop argument
 		value = *((sint16*)*args);
 		*args += 2;
 
-		format_length(dest, value);
+		format_length(dest, size, (sint16)value);
 		break;
 	case FORMAT_SPRITE:
 		// Pop argument
 		value = *((uint32*)*args);
 		*args += 4;
 
-		*(*dest)++ = 23;
-		*((uint32*)(*dest)) = value;
-		*dest += 4;
+		format_handle_overflow(1 + sizeof(uint32));
+
+		format_push_char_safe('\x17');
+		*((uint32*)(*dest)) = (uint32)value;
+		(*dest) += sizeof(uint32);
+		(*size) -= sizeof(uint32);
 		break;
 	}
 }
 
-void format_string_part_from_raw(char **dest, const char *src, char **args)
+static void format_string_part_from_raw(utf8 **dest, size_t *size, const utf8 *src, char **args)
 {
-	unsigned char code;
-	while (1) {
-		code = *src++;
+#ifdef DEBUG
+	if (gDebugStringFormatting) {
+		printf("format_string_part_from_raw(\"%s\")\n", src);
+	}
+#endif
+
+	while (*size > 1) {
+		unsigned int code = utf8_get_next(src, &src);
 		if (code < ' ') {
 			if (code == 0) {
-				*(*dest)++ = code;
 				break;
 			} else if (code <= 4) {
-				*(*dest)++ = code;
-				*(*dest)++ = *src++;
+				format_handle_overflow(2);
+				format_push_char_safe(code);
+				format_push_char_safe(*src++);
 			} else if (code <= 16) {
-				*(*dest)++ = code;
+				format_handle_overflow(1);
+				format_push_char_safe(code);
 			} else if (code <= 22) {
-				*(*dest)++ = code;
-				*(*dest)++ = *src++;
-				*(*dest)++ = *src++;
+				format_handle_overflow(3);
+				format_push_char_safe(code);
+				format_push_char_safe(*src++);
+				format_push_char_safe(*src++);
 			} else {
-				*(*dest)++ = code;
-				*(*dest)++ = *src++;
-				*(*dest)++ = *src++;
-				*(*dest)++ = *src++;
-				*(*dest)++ = *src++;
+				format_handle_overflow(5);
+				format_push_char_safe(code);
+				format_push_char_safe(*src++);
+				format_push_char_safe(*src++);
+				format_push_char_safe(*src++);
+				format_push_char_safe(*src++);
 			}
 		} else if (code <= 'z') {
-			*(*dest)++ = code;
-		} else if (code < 142) {
-			format_string_code(code, dest, args);
+			format_push_char(code);
+		} else if (code < FORMAT_COLOUR_CODE_START || code == FORMAT_COMMA1DP16) {
+			format_string_code(code, dest, size, args);
 		} else {
-			*(*dest)++ = code;
+			size_t codepointLength = (size_t)utf8_get_codepoint_length(code);
+			format_handle_overflow(codepointLength);
+			if (*size > codepointLength) {
+				*dest = utf8_write_codepoint(*dest, code);
+				*size -= codepointLength;
+			}
 		}
 	}
 }
 
-void format_string_part(char **dest, rct_string_id format, char **args)
+static void format_string_part(utf8 **dest, size_t *size, rct_string_id format, char **args)
 {
-	if (format == (rct_string_id)STR_NONE) {
-		**dest = 0;
+	if (format == STR_NONE) {
+		if (*size > 0) {
+			*(*dest) = '\0';
+		}
 	} else if (format < 0x8000) {
 		// Language string
-		format_string_part_from_raw(dest, language_get_string(format), args);
+		const utf8 * rawString = language_get_string(format);
+		format_string_part_from_raw(dest, size, rawString, args);
 	} else if (format < 0x9000) {
 		// Custom string
 		format -= 0x8000;
@@ -603,21 +1095,24 @@ void format_string_part(char **dest, rct_string_id format, char **args)
 		*args += (format & 0xC00) >> 9;
 		format &= ~0xC00;
 
-		strcpy(*dest, RCT2_ADDRESS(0x135A8F4 + (format * 32), char));
-		*dest = strchr(*dest, 0) + 1;
+		format_append_string_n(dest, size, &gUserStrings[format * 32], 32);
+		if ((*size) > 0) *(*dest) = '\0';
 	} else if (format < 0xE000) {
 		// Real name
 		format -= -0xA000;
-		sprintf(*dest, "%s %c.",
-			real_names[format % countof(real_names)],
-			real_name_initials[(format >> 10) % countof(real_name_initials)]
-		);
-		*dest = strchr(*dest, 0) + 1;
+
+		format_append_string(dest, size, real_names[format % countof(real_names)]);
+		if ((*size) == 0) return;
+		format_push_char(' ');
+		format_push_char(real_name_initials[(format >> 10) % countof(real_name_initials)]);
+		format_push_char('.');
+		*(*dest) = '\0';
 
 		*args += 4;
 	} else {
 		// ?
-		RCT2_CALLPROC_EBPSAFE(RCT2_ADDRESS(0x0095AFB8, uint32)[format]);
+		log_error("Localisation CALLPROC reached. Please contact a dev");
+		assert(false);
 	}
 }
 
@@ -628,128 +1123,175 @@ void format_string_part(char **dest, rct_string_id format, char **args)
  * format (ax)
  * args (ecx)
  */
-void format_string(char *dest, rct_string_id format, void *args)
+void format_string(utf8 *dest, size_t size, rct_string_id format, void *args)
 {
-	// RCT2_CALLPROC_X(0x006C2555, format, 0, (int)args, 0, 0, (int)dest, 0);
-	format_string_part(&dest, format, (char**)&args);
+#ifdef DEBUG
+	if (gDebugStringFormatting) {
+		printf("format_string(%hu)\n", format);
+	}
+#endif
+
+	if (size == 0) {
+		return;
+	}
+
+	utf8 *end = dest;
+	size_t left = size;
+	format_string_part(&end, &left, format, (char**)&args);
+	if (left == 0) {
+		// Replace last character with null terminator
+		*(end - 1) = '\0';
+		log_warning("Truncating formatted string \"%s\" to %d bytes.", dest, size);
+	} else {
+		// Null terminate
+		*end = '\0';
+	}
+
+#ifdef DEBUG
+	// Check if characters were written past the end of the buffer
+	assert(end <= dest + size);
+#endif
+}
+
+void format_string_raw(utf8 *dest, size_t size, utf8 *src, void *args)
+{
+#ifdef DEBUG
+	if (gDebugStringFormatting) {
+		printf("format_string_raw(\"%s\")\n", src);
+	}
+#endif
+
+	if (size == 0) {
+		return;
+	}
+
+	utf8 *end = dest;
+	size_t left = size;
+	format_string_part_from_raw(&end, &left, src, (char**)&args);
+	if (left == 0) {
+		// Replace last character with null terminator
+		*(end - 1) = '\0';
+		log_warning("Truncating formatted string \"%s\" to %d bytes.", dest, size);
+	} else {
+		// Null terminate
+		*end = '\0';
+	}
+
+#ifdef DEBUG
+	// Check if characters were written past the end of the buffer
+	assert(end <= dest + size);
+#endif
 }
 
 /**
- *  rct2: 0x006E37F7
- *  error  (eax)
- *  format (bx)
+ * Writes a formatted string to a buffer and converts it to upper case.
+ *  rct2: 0x006C2538
+ * dest (edi)
+ * format (ax)
+ * args (ecx)
  */
-void error_string_quit(int error, rct_string_id format){
-	//RCT2_CALLPROC_X(0x006E37F7, error, format, 0, 0, 0, 0, 0);
-	RCT2_GLOBAL(0x14241A0, uint32) = error;
-	RCT2_GLOBAL(0x9E2DA0, uint32) = 1;
-
-	char* error_string = RCT2_ADDRESS(0x1424080, char);
-	void* args = RCT2_ADDRESS(0x13CE952, void);
-	*error_string = 0;
-
-	if (format != 0xFFFF){
-		format_string(error_string, format, args);
-	}
-	RCT2_GLOBAL(0x9E2D9C, uint32) = 1;
-	rct2_exit();
-	rct2_endupdate();
-}
-
-void generate_string_file()
+void format_string_to_upper(utf8 *dest, size_t size, rct_string_id format, void *args)
 {
-	FILE* f;
-	uint8** str;
-	uint8* c;
-	int i;
+#ifdef DEBUG
+	if (gDebugStringFormatting) {
+		printf("format_string_to_upper(%hu)\n", format);
+	}
+#endif
 
-	f = fopen("english.txt", "w");
-
-	for (i = 0; i < 4442; i++) {
-		str = ((uint8**)(0x009BF2D4 + (i * 4)));
-		if (*str == (uint8*)0xFFFFFFFF)
-			continue;
-		c = *str;
-
-		fprintf(f, "STR_%04d    :", i);
-		while (*c != '\0') {
-			const char *token = format_get_token(*c);
-			if (token != NULL) {
-				fprintf(f, "{%s}", token);
-			} else {
-				if (*c < 32 || *c > 127)
-					fprintf(f, "{%d}", *c);
-				else
-					fputc(*c, f);
-			}
-			c++;
-		}
-		fputc('\n', f);
+	if (size == 0) {
+		return;
 	}
 
-	fclose(f);
+	format_string(dest, size, format, args);
+
+	// Convert to upper case
+	utf8 *ch = dest;
+	while (*ch != '\0') {
+		*ch = toupper(*ch);
+		ch++;
+	}
 }
 
-/**
-*  Return the length of the string in buffer.
-*  note you can't use strlen as there can be inline sprites!
-*
-* buffer (esi)
-*/
-int get_string_length(char* buffer)
+utf8 *win1252_to_utf8_alloc(const char *src, size_t srcMaxSize)
 {
-	// Length of string
-	int length = 0;
+	size_t stringLength = strnlen(src, srcMaxSize);
+	size_t reservedSpace = (stringLength * 4) + 1;
+	utf8 *result = malloc(reservedSpace);
+	int actualSpace = win1252_to_utf8(result, src, stringLength, reservedSpace);
+	return (utf8*)realloc(result, actualSpace);
+}
 
-	for (uint8* curr_char = (uint8*)buffer; *curr_char != (uint8)0; curr_char++) {
-		length++;
-		if (*curr_char >= 0x20) {
-			continue;
-		}
-		switch (*curr_char) {
-		case FORMAT_MOVE_X:
-		case FORMAT_ADJUST_PALETTE:
-		case 3:
-		case 4:
-			curr_char++;
-			length++;
-			break;
-		case FORMAT_NEWLINE:
-		case FORMAT_NEWLINE_SMALLER:
-		case FORMAT_TINYFONT:
-		case FORMAT_BIGFONT:
-		case FORMAT_MEDIUMFONT:
-		case FORMAT_SMALLFONT:
-		case FORMAT_OUTLINE:
-		case FORMAT_OUTLINE_OFF:
-		case FORMAT_WINDOW_COLOUR_1:
-		case FORMAT_WINDOW_COLOUR_2:
-		case FORMAT_WINDOW_COLOUR_3:
-		case 0x10:
-			continue;
-		case FORMAT_INLINE_SPRITE:
-			length += 4;
-			curr_char += 4;
-			break;
-		default:
-			if (*curr_char <= 0x16) { //case 0x11? FORMAT_NEW_LINE_X_Y
-				length += 2;
-				curr_char += 2;
-				continue;
-			}
-			length += 4;
-			curr_char += 4;//never happens?
-			break;
+int win1252_to_utf8(utf8string dst, const char *src, size_t srcLength, size_t maxBufferLength)
+{
+#ifdef __WINDOWS__
+	utf16 stackBuffer[256];
+	utf16 *heapBuffer = NULL;
+	utf16 *intermediateBuffer = stackBuffer;
+	size_t bufferCount = countof(stackBuffer);
+	if (maxBufferLength > bufferCount) {
+		if (srcLength > bufferCount) {
+			bufferCount = srcLength + 4;
+			heapBuffer = malloc(bufferCount * sizeof(utf16));
+			assert(heapBuffer != NULL);
+			intermediateBuffer = heapBuffer;
 		}
 	}
-	return length;
-}
+	MultiByteToWideChar(CP_ACP, 0, src, -1, intermediateBuffer, (int)bufferCount);
+	int result = WideCharToMultiByte(CP_UTF8, 0, intermediateBuffer, -1, dst, (int)maxBufferLength, NULL, NULL);
 
-int win1252_to_utf8(utf8string dst, const char *src, int maxBufferLength)
-{
-	utf16 intermediateBuffer[512];
+	free(heapBuffer);
+#else
+	//log_warning("converting %s of size %d", src, srcLength);
+	char *buffer_conv = strndup(src, srcLength);
+	char *buffer_orig = buffer_conv;
+	const char *to_charset = "UTF8";
+	const char *from_charset = "CP1252";
+	iconv_t cd = iconv_open(to_charset, from_charset);
+	if ((iconv_t)-1 == cd)
+	{
+		int error = errno;
+		switch (error)
+		{
+			case EINVAL:
+				log_error("Unsupported conversion from %s to %s, errno = %d", from_charset, to_charset, error);
+				break;
+			default:
+				log_error("Unknown error while initializing iconv, errno = %d", error);
+		}
+		return 0;
+	}
+	size_t obl = maxBufferLength;
+	char *outBuf = dst;
+	size_t conversion_result = iconv(cd, &buffer_conv, &srcLength, &outBuf, &obl);
+	if (conversion_result == (size_t)-1)
+	{
+		int error = errno;
+		switch (error)
+		{
+			case EILSEQ:
+				log_error("Encountered invalid sequence");
+				break;
+			case EINVAL:
+				log_error("Encountered incomplete sequence");
+				break;
+			case E2BIG:
+				log_error("Ran out of space");
+				break;
+			default:
+				log_error("Unknown error encountered, errno = %d", error);
+		}
+	}
+	int close_result = iconv_close(cd);
+	if (close_result == -1)
+	{
+		log_error("Failed to close iconv, errno = %d", errno);
+	}
+	size_t byte_diff = maxBufferLength - obl + 1;
+	dst[byte_diff - 1] = '\0';
+	//log_warning("converted %s of size %d, %d", dst, byte_diff, strlen(dst));
+	int result = byte_diff;
+	free(buffer_orig);
+#endif // __WINDOWS__
 
-	// TODO this supports only a maximum of 512 characters
-	MultiByteToWideChar(CP_ACP, 0, src, -1, intermediateBuffer, 512);
-	return WideCharToMultiByte(CP_UTF8, 0, intermediateBuffer, -1, dst, maxBufferLength, NULL, NULL);
+	return result;
 }

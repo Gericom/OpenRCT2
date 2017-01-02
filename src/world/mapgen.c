@@ -1,29 +1,24 @@
+#pragma region Copyright (c) 2014-2016 OpenRCT2 Developers
 /*****************************************************************************
- * Copyright (c) 2014 Ted John
  * OpenRCT2, an open source clone of Roller Coaster Tycoon 2.
  *
- * This file is part of OpenRCT2.
+ * OpenRCT2 is the work of many authors, a full list can be found in contributors.md
+ * For more information, visit https://github.com/OpenRCT2/OpenRCT2
  *
  * OpenRCT2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * A full copy of the GNU General Public License can be found in licence.txt
  *****************************************************************************/
+#pragma endregion
 
-#ifndef _USE_MATH_DEFINES
-  #define _USE_MATH_DEFINES
-#endif
-#include <math.h>
-#include "../addresses.h"
+#include "../common.h"
+#include <SDL.h>
+
 #include "../object.h"
+#include "../util/util.h"
 #include "map.h"
 #include "map_helpers.h"
 #include "mapgen.h"
@@ -108,6 +103,8 @@ void mapgen_generate_blank(mapgen_settings *settings)
 	int x, y;
 	rct_map_element *mapElement;
 
+	map_clear_all_elements();
+
 	map_init(settings->mapSize);
 	for (y = 1; y < settings->mapSize - 1; y++) {
 		for (x = 1; x < settings->mapSize - 1; x++) {
@@ -127,7 +124,7 @@ void mapgen_generate(mapgen_settings *settings)
 	int x, y, mapSize, floorTexture, wallTexture, waterLevel;
 	rct_map_element *mapElement;
 
-	srand((unsigned int)time(NULL));
+	util_srand((int)SDL_GetTicks());
 
 	mapSize = settings->mapSize;
 	floorTexture = settings->floor;
@@ -135,7 +132,7 @@ void mapgen_generate(mapgen_settings *settings)
 	waterLevel = settings->waterLevel;
 
 	if (floorTexture == -1)
-		floorTexture = BaseTerrain[rand() % countof(BaseTerrain)];
+		floorTexture = BaseTerrain[util_rand() % countof(BaseTerrain)];
 
 	if (wallTexture == -1) {
 		// Base edge type on surface type
@@ -151,6 +148,8 @@ void mapgen_generate(mapgen_settings *settings)
 			break;
 		}
 	}
+
+	map_clear_all_elements();
 
 	// Initialise the base map
 	map_init(mapSize);
@@ -171,7 +170,7 @@ void mapgen_generate(mapgen_settings *settings)
 
 	if (1) {
 		mapgen_simplex(settings);
-		mapgen_smooth_height(2 + (rand() % 6));
+		mapgen_smooth_height(2 + (util_rand() % 6));
 	} else {
 		// Keep overwriting the map with rough cicular blobs of different sizes and heights.
 		// This procedural method can produce intersecting contour like land and lakes.
@@ -199,7 +198,7 @@ void mapgen_generate(mapgen_settings *settings)
 	// Add sandy beaches
 	int beachTexture = floorTexture;
 	if (settings->floor == -1 && floorTexture == TERRAIN_GRASS) {
-		switch (rand() % 4) {
+		switch (util_rand() % 4) {
 		case 0:
 			beachTexture = TERRAIN_SAND;
 			break;
@@ -228,17 +227,17 @@ static void mapgen_place_tree(int type, int x, int y)
 {
 	int surfaceZ;
 	rct_map_element *mapElement;
-	rct_scenery_entry *sceneryEntry = g_smallSceneryEntries[type];
+	rct_scenery_entry *sceneryEntry = get_small_scenery_entry(type);
 
 	surfaceZ = map_element_height(x * 32 + 16, y * 32 + 16) / 8;
 	mapElement = map_element_insert(x, y, surfaceZ, (1 | 2 | 4 | 8));
+	assert(mapElement != NULL);
 	mapElement->clearance_height = surfaceZ + (sceneryEntry->small_scenery.height >> 3);
 
-	mapElement->type = MAP_ELEMENT_TYPE_SCENERY | (rand() % 3);
+	mapElement->type = MAP_ELEMENT_TYPE_SCENERY | (util_rand() & 3);
 	mapElement->properties.scenery.type = type;
 	mapElement->properties.scenery.age = 0;
-	mapElement->properties.scenery.colour_1 = 26;
-	mapElement->properties.scenery.colour_1 = 18;
+	mapElement->properties.scenery.colour_1 = COLOUR_YELLOW;
 }
 
 /**
@@ -246,21 +245,19 @@ static void mapgen_place_tree(int type, int x, int y)
  */
 static void mapgen_place_trees()
 {
-	int x, y, mapSize, i, j, rindex, type;
-	rct_map_element *mapElement;
-
 	int numGrassTreeIds = 0, numDesertTreeIds = 0, numSnowTreeIds = 0;
 	int *grassTreeIds = (int*)malloc(countof(GrassTrees) * sizeof(int));
 	int *desertTreeIds = (int*)malloc(countof(DesertTrees) * sizeof(int));
 	int *snowTreeIds = (int*)malloc(countof(SnowTrees) * sizeof(int));
 
-	for (i = 0; i < object_entry_group_counts[OBJECT_TYPE_SMALL_SCENERY]; i++) {
-		rct_scenery_entry *sceneryEntry = g_smallSceneryEntries[i];
+	for (int i = 0; i < object_entry_group_counts[OBJECT_TYPE_SMALL_SCENERY]; i++) {
+		rct_scenery_entry *sceneryEntry = get_small_scenery_entry(i);
 		rct_object_entry_extended *entry = &object_entry_groups[OBJECT_TYPE_SMALL_SCENERY].entries[i];
 
-		if (sceneryEntry == (rct_scenery_entry*)0xFFFFFFFF || sceneryEntry == NULL)
+		if (sceneryEntry == (rct_scenery_entry*)-1 || sceneryEntry == NULL)
 			continue;
 
+		int j;
 		for (j = 0; j < countof(GrassTrees); j++)
 			if (strncmp(GrassTrees[j], entry->name, 8) == 0)
 				break;
@@ -286,16 +283,14 @@ static void mapgen_place_trees()
 		}
 	}
 
-	mapSize = RCT2_GLOBAL(RCT2_ADDRESS_MAP_SIZE, sint16);
-
 	int availablePositionsCount = 0;
 	struct { int x; int y; } tmp, *pos, *availablePositions;
 	availablePositions = malloc(256 * 256 * sizeof(tmp));
 
 	// Create list of available tiles
-	for (y = 1; y < mapSize - 1; y++) {
-		for (x = 1; x < mapSize - 1; x++) {
-			mapElement = map_get_surface_element_at(x, y);
+	for (int y = 1; y < gMapSize - 1; y++) {
+		for (int x = 1; x < gMapSize - 1; x++) {
+			rct_map_element *mapElement = map_get_surface_element_at(x, y);
 
 			// Exclude water tiles
 			if ((mapElement->properties.surface.terrain & 0x1F) != 0)
@@ -308,8 +303,8 @@ static void mapgen_place_trees()
 	}
 
 	// Shuffle list
-	for (i = 0; i < availablePositionsCount; i++) {
-		rindex = rand() % availablePositionsCount;
+	for (int i = 0; i < availablePositionsCount; i++) {
+		int rindex = util_rand() % availablePositionsCount;
 		if (rindex == i)
 			continue;
 
@@ -319,15 +314,14 @@ static void mapgen_place_trees()
 	}
 
 	// Place trees
-	float treeToLandRatio = (10 + (rand() % 30)) / 100.0f;
+	float treeToLandRatio = (10 + (util_rand() % 30)) / 100.0f;
 	int numTrees = max(4, (int)(availablePositionsCount * treeToLandRatio));
 
-	mapSize = RCT2_GLOBAL(RCT2_ADDRESS_MAP_SIZE, sint16);
-	for (i = 0; i < numTrees; i++) {
+	for (int i = 0; i < numTrees; i++) {
 		pos = &availablePositions[i];
 
-		type = -1;
-		mapElement = map_get_surface_element_at(pos->x, pos->y);
+		int type = -1;
+		rct_map_element *mapElement = map_get_surface_element_at(pos->x, pos->y);
 		switch (map_element_get_terrain(mapElement)) {
 		case TERRAIN_GRASS:
 		case TERRAIN_DIRT:
@@ -335,7 +329,7 @@ static void mapgen_place_trees()
 			if (numGrassTreeIds == 0)
 				break;
 
-			type = grassTreeIds[rand() % numGrassTreeIds];
+			type = grassTreeIds[util_rand() % numGrassTreeIds];
 			break;
 
 		case TERRAIN_SAND:
@@ -344,15 +338,15 @@ static void mapgen_place_trees()
 			if (numDesertTreeIds == 0)
 				break;
 
-			if (rand() % 4 == 0)
-				type = desertTreeIds[rand() % numDesertTreeIds];
+			if (util_rand() % 4 == 0)
+				type = desertTreeIds[util_rand() % numDesertTreeIds];
 			break;
 
 		case TERRAIN_ICE:
 			if (numSnowTreeIds == 0)
 				break;
-			
-			type = snowTreeIds[rand() % numSnowTreeIds];
+
+			type = snowTreeIds[util_rand() % numSnowTreeIds];
 			break;
 		}
 
@@ -374,7 +368,7 @@ static void mapgen_set_water_level(int waterLevel)
 	int x, y, mapSize;
 	rct_map_element *mapElement;
 
-	mapSize = RCT2_GLOBAL(RCT2_ADDRESS_MAP_SIZE, sint16);
+	mapSize = gMapSize;
 
 	for (y = 1; y < mapSize - 1; y++) {
 		for (x = 1; x < mapSize - 1; x++) {
@@ -391,15 +385,15 @@ static void mapgen_blobs(int count, int lowSize, int highSize, int lowHeight, in
 	int sizeRange = highSize - lowSize;
 	int heightRange = highHeight - lowHeight;
 
-	int border = 2 + (rand() % 24);
+	int border = 2 + (util_rand() % 24);
 	int borderRange = _heightSize - (border * 2);
 	for (i = 0; i < count; i++) {
-		int radius = lowSize + (rand() % sizeRange);
+		int radius = lowSize + (util_rand() % sizeRange);
 		mapgen_blob(
-			border + (rand() % borderRange),
-			border + (rand() % borderRange),
+			border + (util_rand() % borderRange),
+			border + (util_rand() % borderRange),
 			(int)(M_PI * radius * radius),
-			lowHeight + (rand() % heightRange)
+			lowHeight + (util_rand() % heightRange)
 		);
 	}
 }
@@ -445,7 +439,7 @@ static void mapgen_blob_fill(int height)
 
 		for (int x = left; x <= right; x++)
 			if (x >= firstLand && x <= lastLand)
-				landX[x, y] = 1;
+				landX[x * _heightSize + y] = 1;
 	}
 
 	// Do the same for Y
@@ -474,7 +468,7 @@ static void mapgen_blob_fill(int height)
 		}
 
 		for (int y = top; y <= bottom; y++) {
-			if (y >= firstLand && y <= lastLand && landX[x, y]) {
+			if (y >= firstLand && y <= lastLand && landX[x * _heightSize + y]) {
 				// Not only do we know its landlocked to both x and y
 				// we can change the land too
 				set_height(x, y, BLOB_HEIGHT);
@@ -505,7 +499,7 @@ static void mapgen_blob(int cx, int cy, int size, int height)
 	set_height(x, y, BLOB_HEIGHT);
 
 	while (currentSize < size) {
-		if (rand() % 2 == 0) {
+		if (util_rand() % 2 == 0) {
 			set_height(x, y, BLOB_HEIGHT);
 			currentSize++;
 		}
@@ -619,7 +613,7 @@ static void mapgen_set_height()
 			uint8 q11 = get_height(heightX + 1, heightY + 1);
 
 			uint8 baseHeight = (q00 + q01 + q10 + q11) / 4;
-			
+
 			mapElement = map_get_surface_element_at(x, y);
 			mapElement->base_height = max(2, baseHeight * 2);
 			mapElement->clearance_height = mapElement->base_height;
@@ -654,7 +648,7 @@ static uint8 perm[512];
 static void noise_rand()
 {
 	for (int i = 0; i < countof(perm); i++)
-		perm[i] = rand() & 0xFF;
+		perm[i] = util_rand() & 0xFF;
 }
 
 static float fractal_noise(int x, int y, float frequency, int octaves, float lacunarity, float persistence)
@@ -738,12 +732,6 @@ static float generate(float x, float y)
 static int fast_floor(float x)
 {
 	return (x > 0) ? ((int)x) : (((int)x) - 1);
-}
-
-static int mod(int x, int m)
-{
-	int a = x % m;
-	return a < 0 ? a + m : a;
 }
 
 static float grad(int hash, float x, float y)

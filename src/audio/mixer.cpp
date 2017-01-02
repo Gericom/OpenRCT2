@@ -1,57 +1,96 @@
+#pragma region Copyright (c) 2014-2016 OpenRCT2 Developers
 /*****************************************************************************
- * Copyright (c) 2014 Ted John
  * OpenRCT2, an open source clone of Roller Coaster Tycoon 2.
  *
- * This file is part of OpenRCT2.
+ * OpenRCT2 is the work of many authors, a full list can be found in contributors.md
+ * For more information, visit https://github.com/OpenRCT2/OpenRCT2
  *
  * OpenRCT2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * A full copy of the GNU General Public License can be found in licence.txt
  *****************************************************************************/
+#pragma endregion
 
-#include <math.h>
-#include <SDL.h>
-
+#include "../core/Guard.hpp"
 extern "C" {
 	#include "../config.h"
-	#include "../platform/platform.h"
-	#include "audio.h"
 	#include "../localisation/localisation.h"
+	#include "../OpenRCT2.h"
+	#include "../platform/platform.h"
+	#include "../rct2.h"
+	#include "audio.h"
 }
 #include "mixer.h"
+#include <cmath>
+#include "../core/Math.hpp"
+#include "../core/Util.hpp"
 
 Mixer gMixer;
 
-Sample::Sample()
+Source::~Source()
+{
+
+}
+
+unsigned long Source::GetSome(unsigned long offset, const uint8** data, unsigned long length)
+{
+	if (offset >= Length()) {
+		return 0;
+	}
+	unsigned long size = length;
+	if (offset + length > Length()) {
+		size = Length() - offset;
+	}
+	return Read(offset, data, size);
+}
+
+unsigned long Source::Length()
+{
+	return length;
+}
+
+const AudioFormat& Source::Format()
+{
+	return format;
+}
+
+Source_Null::Source_Null()
+{
+	length = 0;
+}
+
+unsigned long Source_Null::Read(unsigned long offset, const uint8** data, unsigned long length)
+{
+	return 0;
+}
+
+Source_Sample::Source_Sample()
 {
 	data = 0;
 	length = 0;
 	issdlwav = false;
 }
 
-Sample::~Sample()
+Source_Sample::~Source_Sample()
 {
 	Unload();
 }
 
-bool Sample::Load(const char* filename)
+unsigned long Source_Sample::Read(unsigned long offset, const uint8** data, unsigned long length)
 {
-	log_verbose("Sample::Load(%s)", filename);
+	*data = &Source_Sample::data[offset];
+	return length;
+}
 
-	utf8 utf8filename[512];
-	win1252_to_utf8(utf8filename, filename, sizeof(utf8filename));
+bool Source_Sample::LoadWAV(const char* filename)
+{
+	log_verbose("Source_Sample::LoadWAV(%s)", filename);
 
 	Unload();
-	SDL_RWops* rw = SDL_RWFromFile(utf8filename, "rb");
+	SDL_RWops* rw = SDL_RWFromFile(filename, "rb");
 	if (rw == NULL) {
 		log_verbose("Error loading %s", filename);
 		return false;
@@ -75,15 +114,12 @@ bool Sample::Load(const char* filename)
 	return true;
 }
 
-bool Sample::LoadCSS1(const char* filename, unsigned int offset)
+bool Source_Sample::LoadCSS1(const char *filename, unsigned int offset)
 {
-	log_verbose("Sample::LoadCSS1(%s, %d)", filename, offset);
-
-	utf8 utf8filename[512];
-	win1252_to_utf8(utf8filename, filename, sizeof(utf8filename));
+	log_verbose("Source_Sample::LoadCSS1(%s, %d)", filename, offset);
 
 	Unload();
-	SDL_RWops* rw = SDL_RWFromFile(utf8filename, "rb");
+	SDL_RWops* rw = SDL_RWFromFile(filename, "rb");
 	if (rw == NULL) {
 		log_verbose("Unable to load %s", filename);
 		return false;
@@ -102,18 +138,35 @@ bool Sample::LoadCSS1(const char* filename, unsigned int offset)
 	Uint32 soundsize;
 	SDL_RWread(rw, &soundsize, sizeof(soundsize), 1);
 	length = soundsize;
-	WAVEFORMATEX waveformat;
+#pragma pack(push, 1)
+	struct WaveFormatEx
+	{
+		Uint16 encoding;
+		Uint16 channels;
+		Uint32 frequency;
+		Uint32 byterate;
+		Uint16 blockalign;
+		Uint16 bitspersample;
+		Uint16 extrasize;
+	} waveformat;
+#pragma pack(pop)
+	assert_struct_size(waveformat, 18);
 	SDL_RWread(rw, &waveformat, sizeof(waveformat), 1);
-	format.freq = waveformat.nSamplesPerSec;
+	format.freq = waveformat.frequency;
 	format.format = AUDIO_S16LSB;
-	format.channels = waveformat.nChannels;
-	data = new uint8[length];
+	format.channels = waveformat.channels;
+	data = new (std::nothrow) uint8[length];
+	if (!data) {
+		log_verbose("Unable to allocate data");
+		SDL_RWclose(rw);
+		return false;
+	}
 	SDL_RWread(rw, data, length, 1);
 	SDL_RWclose(rw);
 	return true;
 }
 
-void Sample::Unload()
+void Source_Sample::Unload()
 {
 	if (data) {
 		if (issdlwav) {
@@ -127,16 +180,11 @@ void Sample::Unload()
 	length = 0;
 }
 
-bool Sample::Loaded()
+bool Source_Sample::Convert(AudioFormat format)
 {
-	return data != 0;
-}
-
-bool Sample::Convert(AudioFormat format)
-{
-	if(Sample::format.format != format.format || Sample::format.channels != format.channels || Sample::format.freq != format.freq){
+	if(Source_Sample::format.format != format.format || Source_Sample::format.channels != format.channels || Source_Sample::format.freq != format.freq){
 		SDL_AudioCVT cvt;
-		if (SDL_BuildAudioCVT(&cvt, Sample::format.format, Sample::format.channels, Sample::format.freq, format.format, format.channels, format.freq) < 0) {
+		if (SDL_BuildAudioCVT(&cvt, Source_Sample::format.format, Source_Sample::format.channels, Source_Sample::format.freq, format.format, format.channels, format.freq) < 0) {
 			return false;
 		}
 		cvt.len = length;
@@ -149,81 +197,160 @@ bool Sample::Convert(AudioFormat format)
 		Unload();
 		data = cvt.buf;
 		length = cvt.len_cvt;
-		Sample::format = format;
+		Source_Sample::format = format;
 		return true;
 	}
 	return false;
 }
 
-const uint8* Sample::Data()
+Source_SampleStream::~Source_SampleStream()
 {
-	return data;
+	Unload();
 }
 
-unsigned long Sample::Length()
+unsigned long Source_SampleStream::Read(unsigned long offset, const uint8** data, unsigned long length)
 {
-	return length;
+	if (length > buffersize) {
+		if (buffer) {
+			delete[] buffer;
+		}
+		buffer = new (std::nothrow) uint8[length];
+		if (!buffer) {
+			return 0;
+		}
+		buffersize = length;
+	}
+	Sint64 currentposition = SDL_RWtell(rw);
+	if (currentposition == -1) {
+		return 0;
+	}
+	if (currentposition - databegin != offset) {
+		Sint64 newposition = SDL_RWseek(rw, databegin + offset, SEEK_SET);
+		if (newposition == -1) {
+			return 0;
+		}
+	}
+	*data = buffer;
+	size_t read = SDL_RWread(rw, buffer, 1, length);
+	if (read == (size_t)-1) {
+		return 0;
+	}
+	return (unsigned long)read;
 }
 
-Stream::Stream()
+bool Source_SampleStream::LoadWAV(SDL_RWops* rw)
 {
-	sourcetype = SOURCE_NONE;
+	Unload();
+	if (rw == NULL) {
+		return false;
+	}
+	Source_SampleStream::rw = rw;
+	Uint32 chunk_id = SDL_ReadLE32(rw);
+	const Uint32 RIFF = 0x46464952;
+	if (chunk_id != RIFF) {
+		log_verbose("Not a WAV file");
+		return false;
+	}
+	Uint32 chunk_size = SDL_ReadLE32(rw);
+	(void)chunk_size;
+	Uint32 chunk_format = SDL_ReadLE32(rw);
+	const Uint32 WAVE = 0x45564157;
+	if (chunk_format != WAVE) {
+		log_verbose("Not in WAVE format");
+		return false;
+	}
+	const Uint32 FMT = 0x20746D66;
+	Uint32 fmtchunk_size = FindChunk(rw, FMT);
+	if (!fmtchunk_size) {
+		log_verbose("Could not find FMT chunk");
+		return false;
+	}
+	Uint64 chunkstart = SDL_RWtell(rw);
+#pragma pack(push, 1)
+	struct WaveFormat
+	{
+		Uint16 encoding;
+		Uint16 channels;
+		Uint32 frequency;
+		Uint32 byterate;
+		Uint16 blockalign;
+		Uint16 bitspersample;
+	} waveformat;
+#pragma pack(pop)
+	assert_struct_size(waveformat, 16);
+	SDL_RWread(rw, &waveformat, sizeof(waveformat), 1);
+	SDL_RWseek(rw, chunkstart + fmtchunk_size, RW_SEEK_SET);
+	const Uint16 pcmformat = 0x0001;
+	if (waveformat.encoding != pcmformat) {
+		log_verbose("Not in proper format");
+		return false;
+	}
+	format.freq = waveformat.frequency;
+	switch (waveformat.bitspersample) {
+		case 8:
+			format.format = AUDIO_U8;
+			break;
+		case 16:
+			format.format = AUDIO_S16LSB;
+			break;
+		default:
+			log_verbose("Invalid bits per sample");
+			return false;
+			break;
+	}
+	format.channels = waveformat.channels;
+	const Uint32 DATA = 0x61746164;
+	Uint32 datachunk_size = FindChunk(rw, DATA);
+	if (!datachunk_size) {
+		log_verbose("Could not find DATA chunk");
+		return false;
+	}
+	length = datachunk_size;
+	databegin = SDL_RWtell(rw);
+	return true;
 }
 
-unsigned long Stream::GetSome(unsigned long offset, const uint8** data, unsigned long length)
+Uint32 Source_SampleStream::FindChunk(SDL_RWops* rw, Uint32 wanted_id)
 {
-	unsigned long size = length;
-	switch(sourcetype) {
-		case SOURCE_SAMPLE:
-			if (offset >= sample->Length()) {
-				return 0;
-			}
-			if (offset + length > sample->Length()) {
-				size = sample->Length() - offset;
-			}
-			*data = &sample->Data()[offset];
-			return size;
-		break;
+	Uint32 subchunk_id = SDL_ReadLE32(rw);
+	Uint32 subchunk_size = SDL_ReadLE32(rw);
+	if (subchunk_id == wanted_id) {
+		return subchunk_size;
+	}
+	const Uint32 FACT = 0x74636166;
+	const Uint32 LIST = 0x5453494c;
+	const Uint32 BEXT = 0x74786562;
+	const Uint32 JUNK = 0x4B4E554A;
+	while (subchunk_id == FACT || subchunk_id == LIST || subchunk_id == BEXT || subchunk_id == JUNK) {
+		SDL_RWseek(rw, subchunk_size, RW_SEEK_CUR);
+		subchunk_id = SDL_ReadLE32(rw);
+		subchunk_size = SDL_ReadLE32(rw);
+		if (subchunk_id == wanted_id) {
+			return subchunk_size;
+		}
 	}
 	return 0;
 }
 
-unsigned long Stream::Length()
+void Source_SampleStream::Unload()
 {
-	switch(sourcetype) {
-		case SOURCE_SAMPLE:
-			return sample->Length();
-		break;
+	if (rw) {
+		SDL_RWclose(rw);
+		rw = NULL;
 	}
-	return 0;
-}
-
-void Stream::SetSource_Sample(Sample& sample)
-{
-	sourcetype = SOURCE_SAMPLE;
-	Stream::sample = &sample;
-}
-
-const AudioFormat* Stream::Format()
-{
-	switch(sourcetype) {
-		case SOURCE_SAMPLE:
-			return &sample->format;
-		break;
+	length = 0;
+	if (buffer) {
+		delete[] buffer;
+		buffer = 0;
 	}
-	return 0;
+	buffersize = 0;
 }
 
 Channel::Channel()
 {
-	resampler = 0;
 	SetRate(1);
 	SetVolume(SDL_MIX_MAXVOLUME);
-	oldvolume = 0;
 	SetPan(0.5f);
-	done = true;
-	stopping = false;
-	stream = 0;
 }
 
 Channel::~Channel()
@@ -232,11 +359,14 @@ Channel::~Channel()
 		speex_resampler_destroy(resampler);
 		resampler = 0;
 	}
+	if (deletesourceondone) {
+		delete source;
+	}
 }
 
-void Channel::Play(Stream& stream, int loop = MIXER_LOOP_NONE)
+void Channel::Play(Source& source, int loop = MIXER_LOOP_NONE)
 {
-	Channel::stream = &stream;
+	Channel::source = &source;
 	Channel::loop = loop;
 	offset = 0;
 	done = false;
@@ -270,8 +400,15 @@ void Channel::SetPan(float pan)
 	if (pan < 0) {
 		Channel::pan = 0;
 	}
-	volume_l = (float)sin((1.0 - Channel::pan) * M_PI / 2.0);
-	volume_r = (float)sin(Channel::pan * M_PI / 2.0);
+	double decibels = (std::abs(Channel::pan - 0.5) * 2.0) * 100.0;
+	double attenuation = pow(10, decibels / 20.0);
+	if (Channel::pan <= 0.5) {
+		volume_l = 1.0;
+		volume_r = float(1.0 / attenuation);
+	} else {
+		volume_r = 1.0;
+		volume_l = float(1.0 / attenuation);
+	}
 }
 
 bool Channel::IsPlaying()
@@ -286,12 +423,27 @@ unsigned long Channel::GetOffset()
 
 bool Channel::SetOffset(unsigned long offset)
 {
-	if (stream && offset < stream->Length()) {
-		int samplesize = stream->Format()->channels * stream->Format()->BytesPerSample();
+	if (source && offset < source->Length()) {
+		int samplesize = source->Format().channels * source->Format().BytesPerSample();
 		Channel::offset = (offset / samplesize) * samplesize;
 		return true;
 	}
 	return false;
+}
+
+void Channel::SetGroup(int group)
+{
+	Channel::group = group;
+}
+
+Mixer::Mixer()
+{
+	for (size_t i = 0; i < Util::CountOf(css1sources); i++) {
+		css1sources[i] = 0;
+	}
+	for (size_t i = 0; i < Util::CountOf(musicsources); i++) {
+		musicsources[i] = 0;
+	}
 }
 
 void Mixer::Init(const char* device)
@@ -310,10 +462,15 @@ void Mixer::Init(const char* device)
 	format.channels = have.channels;
 	format.freq = have.freq;
 	const char* filename = get_file_path(PATH_ID_CSS1);
-	for (int i = 0; i < SOUND_MAXID; i++) {
-		css1samples[i].LoadCSS1(filename, i);
-		css1samples[i].Convert(format); // convert to audio output format, saves some cpu usage but requires a bit more memory, optional
-		css1streams[i].SetSource_Sample(css1samples[i]);
+	for (int i = 0; i < (int)Util::CountOf(css1sources); i++) {
+		Source_Sample* source_sample = new Source_Sample;
+		if (source_sample->LoadCSS1(filename, i)) {
+			source_sample->Convert(format); // convert to audio output format, saves some cpu usage but requires a bit more memory, optional
+			css1sources[i] = source_sample;
+		} else {
+			css1sources[i] = &source_null;
+			delete source_sample;
+		}
 	}
 	effectbuffer = new uint8[(have.samples * format.BytesPerSample() * format.channels)];
 	SDL_PauseAudioDevice(deviceid, 0);
@@ -328,7 +485,22 @@ void Mixer::Close()
 	}
 	Unlock();
 	SDL_CloseAudioDevice(deviceid);
-	delete[] effectbuffer;
+	for (size_t i = 0; i < Util::CountOf(css1sources); i++) {
+		if (css1sources[i] && css1sources[i] != &source_null) {
+			delete css1sources[i];
+			css1sources[i] = 0;
+		}
+	}
+	for (size_t i = 0; i < Util::CountOf(musicsources); i++) {
+		if (musicsources[i] && musicsources[i] != &source_null) {
+			delete musicsources[i];
+			musicsources[i] = 0;
+		}
+	}
+	if (effectbuffer) {
+		delete[] effectbuffer;
+		effectbuffer = 0;
+	}
 }
 
 void Mixer::Lock()
@@ -341,14 +513,14 @@ void Mixer::Unlock()
 	SDL_UnlockAudioDevice(deviceid);
 }
 
-Channel* Mixer::Play(Stream& stream, int loop, bool deleteondone)
+Channel* Mixer::Play(Source& source, int loop, bool deleteondone, bool deletesourceondone)
 {
 	Lock();
-	Channel* newchannel = new (std::nothrow) Channel();
+	Channel* newchannel = new (std::nothrow) Channel;
 	if (newchannel) {
-		newchannel->Play(stream, loop);
+		newchannel->Play(source, loop);
 		newchannel->deleteondone = deleteondone;
-		newchannel->stopping = false;
+		newchannel->deletesourceondone = deletesourceondone;
 		channels.push_back(newchannel);
 	}
 	Unlock();
@@ -362,23 +534,35 @@ void Mixer::Stop(Channel& channel)
 	Unlock();
 }
 
-bool Mixer::LoadMusic(int pathid)
+bool Mixer::LoadMusic(size_t pathId)
 {
-	if (pathid >= PATH_ID_END) {
+	if (pathId >= Util::CountOf(musicsources)) {
 		return false;
 	}
-	if (!musicsamples[pathid].Loaded()) {
-		const char* filename = get_file_path(pathid);
-		musicstreams[pathid].SetSource_Sample(musicsamples[pathid]);
-		return musicsamples[pathid].Load(filename);
+	if (!musicsources[pathId]) {
+		const char* filename = get_file_path((int)pathId);
+		Source_Sample* source_sample = new Source_Sample;
+		if (source_sample->LoadWAV(filename)) {
+			musicsources[pathId] = source_sample;
+			return true;
+		} else {
+			delete source_sample;
+			musicsources[pathId] = &source_null;
+			return false;
+		}
 	} else {
 		return true;
 	}
 }
 
+void Mixer::SetVolume(float volume)
+{
+	Mixer::volume = volume;
+}
+
 void SDLCALL Mixer::Callback(void* arg, uint8* stream, int length)
 {
-	Mixer* mixer = (Mixer*)arg;
+	Mixer* mixer = static_cast<Mixer*>(arg);
 	memset(stream, 0, length);
 	std::list<Channel*>::iterator i = mixer->channels.begin();
 	while (i != mixer->channels.end()) {
@@ -387,15 +571,30 @@ void SDLCALL Mixer::Callback(void* arg, uint8* stream, int length)
 			delete (*i);
 			i = mixer->channels.erase(i);
 		} else {
-			i++;
+			++i;
 		}
 	}
 }
 
 void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 {
-	if (channel.stream && !channel.done) {
-		AudioFormat streamformat = *channel.stream->Format();
+	// Did the volume level get changed? Recalculate level in this case.
+	if (setting_sound_vol != gConfigSound.sound_volume) {
+		setting_sound_vol = gConfigSound.sound_volume;
+		adjust_sound_vol = powf(setting_sound_vol / 100.f, 10.f / 6.f);
+	}
+	if (setting_music_vol != gConfigSound.ride_music_volume) {
+		setting_music_vol = gConfigSound.ride_music_volume;
+		adjust_music_vol = powf(setting_music_vol / 100.f, 10.f / 6.f);
+	}
+
+	// Do not mix channel if channel is a sound and sound is disabled
+	if (channel.group == MIXER_GROUP_SOUND && !gConfigSound.sound_enabled) {
+		return;
+	}
+
+	if (channel.source && channel.source->Length() > 0 && !channel.done) {
+		AudioFormat streamformat = channel.source->Format();
 		int loaded = 0;
 		SDL_AudioCVT cvt;
 		cvt.len_ratio = 1;
@@ -409,9 +608,9 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 			}
 			int samplestoread = (int)((samples - samplesloaded) * rate);
 			int lengthloaded = 0;
-			if (channel.offset < channel.stream->Length()) {
+			if (channel.offset < channel.source->Length()) {
 				bool mustconvert = false;
-				if (MustConvert(*channel.stream)) {
+				if (MustConvert(*channel.source)) {
 					if (SDL_BuildAudioCVT(&cvt, streamformat.format, streamformat.channels, streamformat.freq, Mixer::format.format, Mixer::format.channels, Mixer::format.freq) == -1) {
 						break;
 					}
@@ -420,12 +619,11 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 
 				const uint8* datastream = 0;
 				int toread = (int)(samplestoread / cvt.len_ratio) * samplesize;
-				int readfromstream = (channel.stream->GetSome(channel.offset, &datastream, toread));
+				int readfromstream = (channel.source->GetSome(channel.offset, &datastream, toread));
 				if (readfromstream == 0) {
 					break;
 				}
 
-				int volume = channel.volume;
 				uint8* dataconverted = 0;
 				const uint8* tomix = 0;
 
@@ -483,12 +681,27 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 					mixlength = length - loaded;
 				}
 
-				int startvolume = channel.oldvolume;
-				int endvolume = channel.volume;
+				float volumeadjust = volume;
+				volumeadjust *= (gConfigSound.master_volume / 100.0f);
+				switch (channel.group) {
+				case MIXER_GROUP_SOUND:
+					volumeadjust *= adjust_sound_vol;
+
+					// Cap sound volume on title screen so music is more audible
+					if (gScreenFlags & SCREEN_FLAGS_TITLE_DEMO) {
+						volumeadjust = Math::Min(volumeadjust, 0.75f);
+					}
+					break;
+				case MIXER_GROUP_RIDE_MUSIC:
+					volumeadjust *= adjust_music_vol;
+					break;
+				}
+				int startvolume = (int)(channel.oldvolume * volumeadjust);
+				int endvolume = (int)(channel.volume * volumeadjust);
 				if (channel.stopping) {
 					endvolume = 0;
 				}
-				int mixvolume = volume;
+				int mixvolume = (int)(channel.volume * volumeadjust);
 				if (startvolume != endvolume) {
 					// fade between volume levels to smooth out sound and minimize clicks from sudden volume changes
 					if (!effectbufferloaded) {
@@ -519,7 +732,7 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 
 			loaded += lengthloaded;
 
-			if (channel.loop != 0 && channel.offset >= channel.stream->Length()) {
+			if (channel.loop != 0 && channel.offset >= channel.source->Length()) {
 				if (channel.loop != -1) {
 					channel.loop--;
 				}
@@ -528,7 +741,9 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 		} while(loaded < length && channel.loop != 0 && !channel.stopping);
 
 		channel.oldvolume = channel.volume;
-		if (channel.loop == 0 && channel.offset >= channel.stream->Length()) {
+		channel.oldvolume_l = channel.volume_l;
+		channel.oldvolume_r = channel.volume_r;
+		if (channel.loop == 0 && channel.offset >= channel.source->Length()) {
 			channel.done = true;
 		}
 	}
@@ -536,21 +751,26 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 
 void Mixer::EffectPanS16(Channel& channel, sint16* data, int length)
 {
-	float left = channel.volume_l;
-	float right = channel.volume_r;
+	const float dt = 1.0f / (length * 2);
+	float left_volume = channel.oldvolume_l;
+	float right_volume = channel.oldvolume_r;
+	const float d_left = dt * (channel.volume_l - channel.oldvolume_l);
+	const float d_right = dt * (channel.volume_r - channel.oldvolume_r);
+
 	for (int i = 0; i < length * 2; i += 2) {
-		data[i] = (sint16)(data[i] * left);
-		data[i + 1] = (sint16)(data[i + 1] * right);
+		data[i] = (sint16)(data[i] * left_volume);
+		data[i + 1] = (sint16)(data[i + 1] * right_volume);
+		left_volume += d_left;
+		right_volume += d_right;
 	}
 }
 
 void Mixer::EffectPanU8(Channel& channel, uint8* data, int length)
 {
-	float left = channel.volume_l;
-	float right = channel.volume_r;
 	for (int i = 0; i < length * 2; i += 2) {
-		data[i] = (uint8)(data[i] * left);
-		data[i + 1] = (uint8)(data[i + 1] * right);
+		float t = (float)i / (length * 2);
+		data[i] = (uint8)(data[i] * ((1.0 - t) * channel.oldvolume_l + t * channel.volume_l));
+		data[i + 1] = (uint8)(data[i + 1] * ((1.0 - t) * channel.oldvolume_r + t * channel.volume_r));
 	}
 }
 
@@ -574,13 +794,10 @@ void Mixer::EffectFadeU8(uint8* data, int length, int startvolume, int endvolume
 	}
 }
 
-bool Mixer::MustConvert(Stream& stream)
+bool Mixer::MustConvert(Source& source)
 {
-	const AudioFormat* streamformat = stream.Format();
-	if (!streamformat) {
-		return false;
-	}
-	if (streamformat->format != format.format || streamformat->channels != format.channels || streamformat->freq != format.freq) {
+	const AudioFormat sourceformat = source.Format();
+	if (sourceformat.format != format.format || sourceformat.channels != format.channels || sourceformat.freq != format.freq) {
 		return true;
 	}
 	return false;
@@ -604,16 +821,24 @@ bool Mixer::Convert(SDL_AudioCVT& cvt, const uint8* data, unsigned long length, 
 
 void Mixer_Init(const char* device)
 {
+	if (gOpenRCT2Headless) return;
+
 	gMixer.Init(device);
 }
 
-void* Mixer_Play_Effect(int id, int loop, int volume, float pan, double rate, int deleteondone)
+void* Mixer_Play_Effect(size_t id, int loop, int volume, float pan, double rate, int deleteondone)
 {
-	if (id >= SOUND_MAXID) {
+	if (gOpenRCT2Headless) return 0;
+
+	if (!gConfigSound.sound_enabled) {
+		return 0;
+	}
+	if (id >= Util::CountOf(gMixer.css1sources)) {
+		log_error("Tried to play an invalid sound id. %i", id);
 		return 0;
 	}
 	gMixer.Lock();
-	Channel* channel = gMixer.Play(gMixer.css1streams[id], loop, deleteondone != 0);
+	Channel* channel = gMixer.Play(*gMixer.css1sources[id], loop, deleteondone != 0, false);
 	if (channel) {
 		channel->SetVolume(volume);
 		channel->SetPan(pan);
@@ -625,49 +850,103 @@ void* Mixer_Play_Effect(int id, int loop, int volume, float pan, double rate, in
 
 void Mixer_Stop_Channel(void* channel)
 {
-	gMixer.Stop(*(Channel*)channel);
+	if (gOpenRCT2Headless) return;
+
+	gMixer.Stop(*static_cast<Channel*>(channel));
 }
 
 void Mixer_Channel_Volume(void* channel, int volume)
 {
+	if (gOpenRCT2Headless) return;
+
 	gMixer.Lock();
-	((Channel*)channel)->SetVolume(volume);
+	static_cast<Channel*>(channel)->SetVolume(volume);
 	gMixer.Unlock();
 }
 
 void Mixer_Channel_Pan(void* channel, float pan)
 {
+	if (gOpenRCT2Headless) return;
+
 	gMixer.Lock();
-	((Channel*)channel)->SetPan(pan);
+	static_cast<Channel*>(channel)->SetPan(pan);
 	gMixer.Unlock();
 }
 
 void Mixer_Channel_Rate(void* channel, double rate)
 {
+	if (gOpenRCT2Headless) return;
+
 	gMixer.Lock();
-	((Channel*)channel)->SetRate(rate);
+	static_cast<Channel*>(channel)->SetRate(rate);
 	gMixer.Unlock();
 }
 
 int Mixer_Channel_IsPlaying(void* channel)
 {
-	return ((Channel*)channel)->IsPlaying();
+	if (gOpenRCT2Headless) return false;
+
+	return static_cast<Channel*>(channel)->IsPlaying();
 }
 
 unsigned long Mixer_Channel_GetOffset(void* channel)
 {
-	return ((Channel*)channel)->GetOffset();
+	if (gOpenRCT2Headless) return 0;
+
+	return static_cast<Channel*>(channel)->GetOffset();
 }
 
 int Mixer_Channel_SetOffset(void* channel, unsigned long offset)
 {
-	return ((Channel*)channel)->SetOffset(offset);
+	if (gOpenRCT2Headless) return 0;
+
+	return static_cast<Channel*>(channel)->SetOffset(offset);
 }
 
-void* Mixer_Play_Music(int pathid)
+void Mixer_Channel_SetGroup(void* channel, int group)
 {
-	if (gMixer.LoadMusic(pathid)) {
-		return gMixer.Play(gMixer.musicstreams[pathid], MIXER_LOOP_INFINITE, false);
+	if (gOpenRCT2Headless) return;
+
+	static_cast<Channel*>(channel)->SetGroup(group);
+}
+
+void* Mixer_Play_Music(int pathId, int loop, int streaming)
+{
+	if (gOpenRCT2Headless) return 0;
+
+	if (streaming) {
+		const utf8 *filename = get_file_path(pathId);
+
+		SDL_RWops* rw = SDL_RWFromFile(filename, "rb");
+		if (rw != NULL) {
+			Source_SampleStream* source_samplestream = new Source_SampleStream;
+			if (source_samplestream->LoadWAV(rw)) {
+				Channel* channel = gMixer.Play(*source_samplestream, loop, false, true);
+				if (!channel) {
+					delete source_samplestream;
+				} else {
+					channel->SetGroup(MIXER_GROUP_RIDE_MUSIC);
+				}
+				return channel;
+			} else {
+				delete source_samplestream;
+			}
+		}
+	} else {
+		if (gMixer.LoadMusic(pathId)) {
+			Channel* channel = gMixer.Play(*gMixer.musicsources[pathId], MIXER_LOOP_INFINITE, false, false);
+			if (channel) {
+				channel->SetGroup(MIXER_GROUP_RIDE_MUSIC);
+			}
+			return channel;
+		}
 	}
-	return 0;
+	return NULL;
+}
+
+void Mixer_SetVolume(float volume)
+{
+	if (gOpenRCT2Headless) return;
+
+	gMixer.SetVolume(volume);
 }

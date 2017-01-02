@@ -1,29 +1,28 @@
+#pragma region Copyright (c) 2014-2016 OpenRCT2 Developers
 /*****************************************************************************
- * Copyright (c) 2014 Ted John
  * OpenRCT2, an open source clone of Roller Coaster Tycoon 2.
  *
- * This file is part of OpenRCT2.
+ * OpenRCT2 is the work of many authors, a full list can be found in contributors.md
+ * For more information, visit https://github.com/OpenRCT2/OpenRCT2
  *
  * OpenRCT2 is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
-
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
-
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ * A full copy of the GNU General Public License can be found in licence.txt
  *****************************************************************************/
+#pragma endregion
 
-#include "../addresses.h"
+#include "../cheats.h"
+#include "../editor.h"
 #include "../game.h"
+#include "../input.h"
 #include "../localisation/localisation.h"
 #include "../ride/ride.h"
 #include "../ride/ride_data.h"
-#include "../scenario.h"
+#include "../ride/track.h"
+#include "../scenario/scenario.h"
 #include "../world/banner.h"
 #include "../world/footpath.h"
 #include "../world/map.h"
@@ -34,7 +33,6 @@
 static void viewport_interaction_remove_scenery(rct_map_element *mapElement, int x, int y);
 static void viewport_interaction_remove_footpath(rct_map_element *mapElement, int x, int y);
 static void viewport_interaction_remove_footpath_item(rct_map_element *mapElement, int x, int y);
-static void viewport_interaction_remove_park_entrance(rct_map_element *mapElement, int x, int y);
 static void viewport_interaction_remove_park_wall(rct_map_element *mapElement, int x, int y);
 static void viewport_interaction_remove_large_scenery(rct_map_element *mapElement, int x, int y);
 static rct_peep *viewport_interaction_get_closest_peep(int x, int y, int maxDistance);
@@ -45,20 +43,22 @@ static rct_peep *viewport_interaction_get_closest_peep(int x, int y, int maxDist
  */
 int viewport_interaction_get_item_left(int x, int y, viewport_interaction_info *info)
 {
-	rct_s6_info *s6Info = (rct_s6_info*)0x00141F570;
 	rct_map_element *mapElement;
 	rct_sprite *sprite;
 	rct_vehicle *vehicle;
 
 	// No click input for title screen or scenario editor or track manager
-	if (RCT2_GLOBAL(RCT2_ADDRESS_SCREEN_FLAGS, uint8) & (SCREEN_FLAGS_TITLE_DEMO | SCREEN_FLAGS_SCENARIO_EDITOR | SCREEN_FLAGS_TRACK_MANAGER))
+	if (gScreenFlags & (SCREEN_FLAGS_TITLE_DEMO | SCREEN_FLAGS_SCENARIO_EDITOR | SCREEN_FLAGS_TRACK_MANAGER))
 		return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 
-	// 
-	if ((RCT2_GLOBAL(RCT2_ADDRESS_SCREEN_FLAGS, uint8) & SCREEN_FLAGS_TRACK_DESIGNER) && s6Info->var_000 != 6)
+	//
+	if ((gScreenFlags & SCREEN_FLAGS_TRACK_DESIGNER) && gS6Info.editor_step != EDITOR_STEP_ROLLERCOASTER_DESIGNER)
 		return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 
-	get_map_coordinates_from_pos(x, y, 0xFF79, &info->x, &info->y, &info->type, &info->mapElement);
+	rct_xy16 mapCoord = { 0 };
+	get_map_coordinates_from_pos(x, y, VIEWPORT_INTERACTION_MASK_SPRITE & VIEWPORT_INTERACTION_MASK_RIDE & VIEWPORT_INTERACTION_MASK_PARK, &mapCoord.x, &mapCoord.y, &info->type, &info->mapElement, NULL);
+	info->x = mapCoord.x;
+	info->y = mapCoord.y;
 	mapElement = info->mapElement;
 	sprite = (rct_sprite*)mapElement;
 
@@ -67,7 +67,7 @@ int viewport_interaction_get_item_left(int x, int y, viewport_interaction_info *
 		switch (sprite->unknown.sprite_identifier) {
 		case SPRITE_IDENTIFIER_VEHICLE:
 			vehicle = &(sprite->vehicle);
-			if (vehicle->var_D6 != 255)
+			if (vehicle->ride_subtype != 255)
 				vehicle_set_map_toolbar(vehicle);
 			else
 				info->type = VIEWPORT_INTERACTION_ITEM_NONE;
@@ -81,15 +81,15 @@ int viewport_interaction_get_item_left(int x, int y, viewport_interaction_info *
 		ride_set_map_tooltip(mapElement);
 		break;
 	case VIEWPORT_INTERACTION_ITEM_PARK:
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = RCT2_GLOBAL(RCT2_ADDRESS_PARK_NAME, rct_string_id);
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint32) = RCT2_GLOBAL(RCT2_ADDRESS_PARK_NAME_ARGS, uint32);
+		set_map_tooltip_format_arg(0, rct_string_id, gParkName);
+		set_map_tooltip_format_arg(2, uint32, gParkNameArgs);
 		break;
 	default:
 		info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 		break;
 	}
 
-	// If nothing is under cursor, find a closeby peep
+	// If nothing is under cursor, find a close by peep
 	if (info->type == VIEWPORT_INTERACTION_ITEM_NONE) {
 		info->peep = viewport_interaction_get_closest_peep(x, y, 32);
 		if (info->peep == NULL)
@@ -131,8 +131,17 @@ int viewport_interaction_left_click(int x, int y)
 		case SPRITE_IDENTIFIER_PEEP:
 			window_guest_open(info.peep);
 			break;
-		case SPRITE_IDENTIFIER_FLOATING_TEXT:
-			balloon_pop(info.sprite);
+		case SPRITE_IDENTIFIER_MISC:
+			if (game_is_not_paused()) {
+				switch (info.sprite->unknown.misc_identifier) {
+				case SPRITE_MISC_BALLOON:
+					game_do_command(info.sprite->balloon.sprite_index, GAME_COMMAND_FLAG_APPLY, 0, 0, GAME_COMMAND_BALLOON_PRESS, 0, 0);
+					break;
+				case SPRITE_MISC_DUCK:
+					duck_press(&info.sprite->duck);
+					break;
+				}
+			}
 			break;
 		}
 		return 1;
@@ -148,163 +157,182 @@ int viewport_interaction_left_click(int x, int y)
 }
 
 /**
- * 
+ *
  *  rct2: 0x006EDE88
  */
 int viewport_interaction_get_item_right(int x, int y, viewport_interaction_info *info)
 {
-	rct_s6_info *s6Info = (rct_s6_info*)0x00141F570;
 	rct_map_element *mapElement;
-	rct_sprite *sprite;
 	rct_scenery_entry *sceneryEntry;
 	rct_banner *banner;
 	rct_ride *ride;
 	int i, stationIndex;
 
 	// No click input for title screen or track manager
-	if (RCT2_GLOBAL(RCT2_ADDRESS_SCREEN_FLAGS, uint8) & (SCREEN_FLAGS_TITLE_DEMO | SCREEN_FLAGS_TRACK_MANAGER))
+	if (gScreenFlags & (SCREEN_FLAGS_TITLE_DEMO | SCREEN_FLAGS_TRACK_MANAGER))
 		return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 
-	// 
-	if ((RCT2_GLOBAL(RCT2_ADDRESS_SCREEN_FLAGS, uint8) & SCREEN_FLAGS_TRACK_DESIGNER) && s6Info->var_000 != 6)
+	//
+	if ((gScreenFlags & SCREEN_FLAGS_TRACK_DESIGNER) && gS6Info.editor_step != EDITOR_STEP_ROLLERCOASTER_DESIGNER)
 		return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 
-	get_map_coordinates_from_pos(x, y, 9, &info->x, &info->y, &info->type, &info->mapElement);
+	rct_xy16 mapCoord = { 0 };
+	get_map_coordinates_from_pos(x, y, ~(VIEWPORT_INTERACTION_MASK_TERRAIN & VIEWPORT_INTERACTION_MASK_WATER), &mapCoord.x, &mapCoord.y, &info->type, &info->mapElement, NULL);
+	info->x = mapCoord.x;
+	info->y = mapCoord.y;
 	mapElement = info->mapElement;
-	sprite = (rct_sprite*)mapElement;
 
 	switch (info->type) {
 	case VIEWPORT_INTERACTION_ITEM_SPRITE:
-		if ((RCT2_GLOBAL(RCT2_ADDRESS_SCREEN_FLAGS, uint8) & SCREEN_FLAGS_SCENARIO_EDITOR) || mapElement->type != 0)
+		if ((gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) || mapElement->type != 0)
 			return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 
 		mapElement += 6;
-		ride = GET_RIDE(mapElement->type);
+		ride = get_ride(mapElement->type);
 		if (ride->status == RIDE_STATUS_CLOSED) {
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1163;
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = ride->name;
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 4, uint32) = ride->name_arguments;
+			set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_MODIFY);
+			set_map_tooltip_format_arg(2, rct_string_id, ride->name);
+			set_map_tooltip_format_arg(4, uint32, ride->name_arguments);
 		}
 		return info->type;
 
 	case VIEWPORT_INTERACTION_ITEM_RIDE:
-		if (RCT2_GLOBAL(RCT2_ADDRESS_SCREEN_FLAGS, uint8) & SCREEN_FLAGS_SCENARIO_EDITOR)
+		if (gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR)
 			return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 		if (map_element_get_type(mapElement) == MAP_ELEMENT_TYPE_PATH)
 			return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
 
-		ride = GET_RIDE(mapElement->properties.track.ride_index);
+		ride = get_ride(mapElement->properties.track.ride_index);
 		if (ride->status != RIDE_STATUS_CLOSED)
 			return info->type;
 
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1163;
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_MODIFY);
 
 		if (map_element_get_type(mapElement) == MAP_ELEMENT_TYPE_ENTRANCE) {
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) =
-				mapElement->properties.track.type == ENTRANCE_TYPE_RIDE_ENTRANCE ? 1335 : 1337;
-		} else if (mapElement->properties.track.type == 1 || mapElement->properties.track.type == 2 || mapElement->properties.track.type == 3) {
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = 1333;
+			rct_string_id stringId;
+			if (mapElement->properties.track.type == ENTRANCE_TYPE_RIDE_ENTRANCE) {
+				if (ride->num_stations > 1) {
+					stringId = STR_RIDE_STATION_X_ENTRANCE;
+				} else {
+					stringId = STR_RIDE_ENTRANCE;
+				}
+			} else {
+				if (ride->num_stations > 1) {
+					stringId = STR_RIDE_STATION_X_EXIT;
+				} else {
+					stringId = STR_RIDE_EXIT;
+				}
+			}
+			set_map_tooltip_format_arg(2, rct_string_id, stringId);
+		} else if (track_element_is_station(mapElement)) {
+			rct_string_id stringId;
+			if (ride->num_stations > 1) {
+				stringId = STR_RIDE_STATION_X;
+			} else {
+				stringId = STR_RIDE_STATION;
+			}
+			set_map_tooltip_format_arg(2, rct_string_id, stringId);
 		} else {
-			if (!map_is_location_owned(info->x, info->y, mapElement->base_height << 4))
+			if (!gCheatsSandboxMode && !map_is_location_owned(info->x, info->y, mapElement->base_height << 4)) {
 				return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
+			}
 
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = ride->name;
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 4, uint32) = ride->name_arguments;
+			set_map_tooltip_format_arg(2, rct_string_id, ride->name);
+			set_map_tooltip_format_arg(4, uint32, ride->name_arguments);
 			return info->type;
 		}
 
-		if (ride->num_stations > 1)
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16)++;
-
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 4, uint16) = ride->name;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 6, uint32) = ride->name_arguments;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 10, uint16) = RideNameConvention[ride->type].station_name + 2;
+		set_map_tooltip_format_arg(4, rct_string_id, ride->name);
+		set_map_tooltip_format_arg(6, uint32, ride->name_arguments);
+		set_map_tooltip_format_arg(10, rct_string_id, RideComponentNames[RideNameConvention[ride->type].station].capitalised);
 
 		stationIndex = map_get_station(mapElement);
 		for (i = stationIndex; i >= 0; i--)
 			if (ride->station_starts[i] == 0xFFFF)
 				stationIndex--;
 		stationIndex++;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 12, uint16) = stationIndex;
+		set_map_tooltip_format_arg(12, uint16, stationIndex);
 		return info->type;
 
 	case VIEWPORT_INTERACTION_ITEM_WALL:
-		sceneryEntry = g_wallSceneryEntries[mapElement->properties.scenery.type];
+		sceneryEntry = get_wall_entry(mapElement->properties.scenery.type);
 		if (sceneryEntry->wall.var_0D != 255) {
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1163;
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = sceneryEntry->name;
+			set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_MODIFY);
+			set_map_tooltip_format_arg(2, rct_string_id, sceneryEntry->name);
 			return info->type;
 		}
 		break;
 
 	case VIEWPORT_INTERACTION_ITEM_LARGE_SCENERY:
-		sceneryEntry = g_largeSceneryEntries[mapElement->properties.scenerymultiple.type & 0x3FF];
+		sceneryEntry = get_large_scenery_entry(mapElement->properties.scenerymultiple.type & 0x3FF);
 		if (sceneryEntry->large_scenery.var_11 != 255) {
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1163;
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = sceneryEntry->name;
+			set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_MODIFY);
+			set_map_tooltip_format_arg(2, rct_string_id, sceneryEntry->name);
 			return info->type;
 		}
 		break;
 
 	case VIEWPORT_INTERACTION_ITEM_BANNER:
 		banner = &gBanners[mapElement->properties.banner.index];
-		sceneryEntry = g_bannerSceneryEntries[banner->type];
+		sceneryEntry = get_banner_entry(banner->type);
 
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1163;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = sceneryEntry->name;
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_MODIFY);
+		set_map_tooltip_format_arg(2, rct_string_id, sceneryEntry->name);
 		return info->type;
 	}
 
-	if ((RCT2_GLOBAL(RCT2_ADDRESS_INPUT_FLAGS, uint32) & 0x48) != 0x48)
-		if (window_find_by_class(WC_RIDE_CONSTRUCTION) == NULL && window_find_by_class(WC_FOOTPATH) == NULL)
+	if (!(gInputFlags & INPUT_FLAG_6) || !(gInputFlags & INPUT_FLAG_TOOL_ACTIVE)) {
+		if (window_find_by_class(WC_RIDE_CONSTRUCTION) == NULL && window_find_by_class(WC_FOOTPATH) == NULL) {
 			return info->type = VIEWPORT_INTERACTION_ITEM_NONE;
+		}
+	}
 
 	switch (info->type) {
 	case VIEWPORT_INTERACTION_ITEM_SCENERY:
-		sceneryEntry = g_smallSceneryEntries[mapElement->properties.scenery.type];
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1164;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = sceneryEntry->name;
+		sceneryEntry = get_small_scenery_entry(mapElement->properties.scenery.type);
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_REMOVE);
+		set_map_tooltip_format_arg(2, rct_string_id, sceneryEntry->name);
 		return info->type;
 
 	case VIEWPORT_INTERACTION_ITEM_FOOTPATH:
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1164;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = 1425;
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_REMOVE);
+		set_map_tooltip_format_arg(2, rct_string_id, STR_FOOTPATH_MAP_TIP);
 		if (mapElement->type & 1)
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = 1426;
+			set_map_tooltip_format_arg(2, rct_string_id, STR_QUEUE_LINE_MAP_TIP);
 		return info->type;
 
 	case VIEWPORT_INTERACTION_ITEM_FOOTPATH_ITEM:
-		sceneryEntry = RCT2_ADDRESS(0x9ADA50, rct_scenery_entry*)[mapElement->properties.path.additions & 0x0F];
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1164;
+		sceneryEntry = get_footpath_item_entry(footpath_element_get_path_scenery_index(mapElement));
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_REMOVE);
 		if (mapElement->flags & 0x20) {
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = 3124;
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 4, uint16) = sceneryEntry->name;
+			set_map_tooltip_format_arg(2, rct_string_id, STR_BROKEN);
+			set_map_tooltip_format_arg(4, rct_string_id, sceneryEntry->name);
 		} else {
-			RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = sceneryEntry->name;
+			set_map_tooltip_format_arg(2, rct_string_id, sceneryEntry->name);
 		}
 		return info->type;
 
 	case VIEWPORT_INTERACTION_ITEM_PARK:
-		if (!(RCT2_GLOBAL(RCT2_ADDRESS_SCREEN_FLAGS, uint8) & SCREEN_FLAGS_SCENARIO_EDITOR))
+		if (!(gScreenFlags & SCREEN_FLAGS_SCENARIO_EDITOR) && !gCheatsSandboxMode)
 			break;
 
 		if (map_element_get_type(mapElement) != MAP_ELEMENT_TYPE_ENTRANCE)
 			break;
 
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1164;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = 3192;
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_REMOVE);
+		set_map_tooltip_format_arg(2, rct_string_id, STR_OBJECT_SELECTION_PARK_ENTRANCE);
 		return info->type;
 
 	case VIEWPORT_INTERACTION_ITEM_WALL:
-		sceneryEntry = g_wallSceneryEntries[mapElement->properties.scenery.type];
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1164;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = sceneryEntry->name;
+		sceneryEntry = get_wall_entry(mapElement->properties.scenery.type);
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_REMOVE);
+		set_map_tooltip_format_arg(2, rct_string_id, sceneryEntry->name);
 		return info->type;
 
 	case VIEWPORT_INTERACTION_ITEM_LARGE_SCENERY:
-		sceneryEntry = g_largeSceneryEntries[mapElement->properties.scenery.type & 0x3FF];
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 0, uint16) = 1164;
-		RCT2_GLOBAL(RCT2_ADDRESS_MAP_TOOLTIP_ARGS + 2, uint16) = sceneryEntry->name;
+		sceneryEntry = get_large_scenery_entry(mapElement->properties.scenery.type & 0x3FF);
+		set_map_tooltip_format_arg(0, rct_string_id, STR_MAP_TOOLTIP_STRINGID_CLICK_TO_REMOVE);
+		set_map_tooltip_format_arg(2, rct_string_id, sceneryEntry->name);
 		return info->type;
 	}
 
@@ -319,7 +347,7 @@ int viewport_interaction_right_over(int x, int y)
 }
 
 /**
- * 
+ *
  *  rct2: 0x006E8A62
  */
 int viewport_interaction_right_click(int x, int y)
@@ -368,12 +396,12 @@ int viewport_interaction_right_click(int x, int y)
 }
 
 /**
- * 
+ *
  *  rct2: 0x006E08D2
  */
 static void viewport_interaction_remove_scenery(rct_map_element *mapElement, int x, int y)
 {
-	RCT2_GLOBAL(RCT2_ADDRESS_GAME_COMMAND_ERROR_TITLE, uint16) = STR_CANT_REMOVE_THIS;
+	gGameCommandErrorTitle = STR_CANT_REMOVE_THIS;
 	game_do_command(
 		x,
 		(mapElement->type << 8) | 1,
@@ -386,7 +414,7 @@ static void viewport_interaction_remove_scenery(rct_map_element *mapElement, int
 }
 
 /**
- * 
+ *
  *  rct2: 0x006A614A
  */
 static void viewport_interaction_remove_footpath(rct_map_element *mapElement, int x, int y)
@@ -396,15 +424,15 @@ static void viewport_interaction_remove_footpath(rct_map_element *mapElement, in
 	rct_map_element *mapElement2;
 
 	z = mapElement->base_height;
-	
+
 	w = window_find_by_class(WC_FOOTPATH);
 	if (w != NULL)
-		sub_6A7831();
+		footpath_provisional_update();
 
 	mapElement2 = map_get_first_element_at(x / 32, y / 32);
 	do {
 		if (map_element_get_type(mapElement2) == MAP_ELEMENT_TYPE_PATH && mapElement2->base_height == z) {
-			RCT2_GLOBAL(RCT2_ADDRESS_GAME_COMMAND_ERROR_TITLE, uint16) = STR_CANT_REMOVE_FOOTPATH_FROM_HERE;
+			gGameCommandErrorTitle = STR_CANT_REMOVE_FOOTPATH_FROM_HERE;
 			footpath_remove(x, y, z, 1);
 			break;
 		}
@@ -412,21 +440,21 @@ static void viewport_interaction_remove_footpath(rct_map_element *mapElement, in
 }
 
 /**
- * 
+ *
  *  rct2: 0x006A61AB
  */
 static void viewport_interaction_remove_footpath_item(rct_map_element *mapElement, int x, int y)
 {
 	int type;
 
-	type = mapElement->properties.scenery.type >> 4;
-	if (mapElement->type & 0x80)
+	type = mapElement->properties.path.type >> 4;
+	if (mapElement->type & 1)
 		type |= 0x80;
 
-	RCT2_GLOBAL(RCT2_ADDRESS_GAME_COMMAND_ERROR_TITLE, uint16) = STR_CANT_REMOVE_THIS;
+	gGameCommandErrorTitle = STR_CANT_REMOVE_THIS;
 	game_do_command(
 		x,
-		((mapElement->properties.scenery.type & 7) << 8) | 1,
+		((mapElement->properties.path.type & 7) << 8) | 1,
 		y,
 		(type << 8) | mapElement->base_height,
 		GAME_COMMAND_PLACE_PATH,
@@ -436,10 +464,10 @@ static void viewport_interaction_remove_footpath_item(rct_map_element *mapElemen
 }
 
 /**
- * 
+ *
  *  rct2: 0x00666C0E
  */
-static void viewport_interaction_remove_park_entrance(rct_map_element *mapElement, int x, int y)
+void viewport_interaction_remove_park_entrance(rct_map_element *mapElement, int x, int y)
 {
 	int rotation = (mapElement->type + 1) & 3;
 	switch (mapElement->properties.entrance.index & 0x0F) {
@@ -452,23 +480,21 @@ static void viewport_interaction_remove_park_entrance(rct_map_element *mapElemen
 		y -= TileDirectionDelta[rotation].y;
 		break;
 	}
-	RCT2_GLOBAL(RCT2_ADDRESS_GAME_COMMAND_ERROR_TITLE, uint16) = STR_CANT_REMOVE_THIS;
+	gGameCommandErrorTitle = STR_CANT_REMOVE_THIS;
 	game_do_command(x, GAME_COMMAND_FLAG_APPLY, y, mapElement->base_height / 2, GAME_COMMAND_REMOVE_PARK_ENTRANCE, 0, 0);
 }
 
 /**
- * 
+ *
  *  rct2: 0x006E57A9
  */
 static void viewport_interaction_remove_park_wall(rct_map_element *mapElement, int x, int y)
 {
-	rct_scenery_entry* sceneryEntry;
-
-	sceneryEntry = g_wallSceneryEntries[mapElement->properties.fence.slope];
+	rct_scenery_entry *sceneryEntry = get_wall_entry(mapElement->properties.fence.type);
 	if (sceneryEntry->wall.var_0D != 0xFF){
 		window_sign_small_open(mapElement->properties.fence.item[0]);
 	} else {
-		RCT2_GLOBAL(RCT2_ADDRESS_GAME_COMMAND_ERROR_STRING_ID, rct_string_id) = STR_CANT_REMOVE_THIS;
+		gGameCommandErrorTitle = STR_CANT_REMOVE_THIS;
 		game_do_command(
 			x,
 			GAME_COMMAND_FLAG_APPLY,
@@ -482,17 +508,12 @@ static void viewport_interaction_remove_park_wall(rct_map_element *mapElement, i
 }
 
 /**
- * 
+ *
  *  rct2: 0x006B88DC
  */
 static void viewport_interaction_remove_large_scenery(rct_map_element *mapElement, int x, int y)
 {
-	int ebx;
-	rct_scenery_entry* sceneryEntry;
-
-	ebx = mapElement->properties.scenerymultiple.type;
-	ebx |= (mapElement->properties.scenerymultiple.index & 0x3) << 8;
-	sceneryEntry = g_largeSceneryEntries[ebx];
+	rct_scenery_entry *sceneryEntry = get_large_scenery_entry(mapElement->properties.scenerymultiple.type & MAP_ELEMENT_LARGE_TYPE_MASK);
 
 	if (sceneryEntry->large_scenery.var_11 != 0xFF){
 		int id = (mapElement->type & 0xC0) |
@@ -500,14 +521,14 @@ static void viewport_interaction_remove_large_scenery(rct_map_element *mapElemen
 			((mapElement->properties.scenerymultiple.colour[1] & 0xE0) >> 5);
 		window_sign_open(id);
 	} else {
-		RCT2_GLOBAL(RCT2_ADDRESS_GAME_COMMAND_ERROR_STRING_ID, rct_string_id) = 1158;
+		gGameCommandErrorTitle = STR_CANT_REMOVE_THIS;
 		game_do_command(
-			x, 
-			1 | ((mapElement->type & 0x3) << 8), 
-			y, 
-			mapElement->base_height | ((mapElement->properties.scenerymultiple.index >> 2) << 8),
-			GAME_COMMAND_44, 
-			0, 
+			x,
+			1 | ((mapElement->type & 0x3) << 8),
+			y,
+			mapElement->base_height | ((mapElement->properties.scenerymultiple.type >> 10) << 8),
+			GAME_COMMAND_REMOVE_LARGE_SCENERY,
+			0,
 			0
 		);
 	}
@@ -524,7 +545,7 @@ static rct_peep *viewport_interaction_get_closest_peep(int x, int y, int maxDist
 	w = window_find_from_point(x, y);
 	if (w == NULL)
 		return 0;
-		
+
 	viewport = w->viewport;
 	if (viewport == NULL || viewport->zoom >= 2)
 		return 0;
@@ -535,7 +556,7 @@ static rct_peep *viewport_interaction_get_closest_peep(int x, int y, int maxDist
 	closestPeep = NULL;
 	closestDistance = 0xFFFF;
 	FOR_ALL_PEEPS(spriteIndex, peep) {
-		if (peep->sprite_left == 0x8000)
+		if (peep->sprite_left == (sint16)0x8000)
 			continue;
 
 		distance =
@@ -551,4 +572,63 @@ static rct_peep *viewport_interaction_get_closest_peep(int x, int y, int maxDist
 	}
 
 	return closestPeep;
+}
+
+/**
+ *
+ *  rct2: 0x0068A15E
+ */
+void sub_68A15E(int screenX, int screenY, short *x, short *y, int *direction, rct_map_element **mapElement)
+{
+	sint16 my_x, my_y;
+	int interactionType;
+	rct_map_element *myMapElement;
+	rct_viewport *viewport;
+	get_map_coordinates_from_pos(screenX, screenY, VIEWPORT_INTERACTION_MASK_TERRAIN & VIEWPORT_INTERACTION_MASK_WATER, &my_x, &my_y, &interactionType, &myMapElement, &viewport);
+
+	if (interactionType == VIEWPORT_INTERACTION_ITEM_NONE) {
+		*x = 0x8000;
+		return;
+	}
+
+	sint16 originalZ = 0;
+	if (interactionType == VIEWPORT_INTERACTION_ITEM_WATER) {
+		originalZ = (myMapElement->properties.surface.terrain & MAP_ELEMENT_WATER_HEIGHT_MASK) << 4;
+	}
+
+	rct_xy16 start_vp_pos = screen_coord_to_viewport_coord(viewport, screenX, screenY);
+	rct_xy16 map_pos = { my_x + 16, my_y + 16 };
+
+	for (int i = 0; i < 5; i++) {
+		sint16 z = originalZ;
+		if (interactionType != VIEWPORT_INTERACTION_ITEM_WATER) {
+			z = map_element_height(map_pos.x, map_pos.y);
+		}
+		map_pos = viewport_coord_to_map_coord(start_vp_pos.x, start_vp_pos.y, z);
+		map_pos.x = clamp(my_x, map_pos.x, my_x + 31);
+		map_pos.y = clamp(my_y, map_pos.y, my_y + 31);
+	}
+
+	// Determine to which edge the cursor is closest
+	int myDirection;
+	int mod_x = map_pos.x & 0x1F;
+	int mod_y = map_pos.y & 0x1F;
+	if (mod_x < mod_y) {
+		if (mod_x + mod_y < 32) {
+			myDirection = 0;
+		} else {
+			myDirection = 1;
+		}
+	} else {
+		if (mod_x + mod_y < 32) {
+			myDirection = 3;
+		} else {
+			myDirection = 2;
+		}
+	}
+
+	*x = map_pos.x & ~0x1F;
+	*y = map_pos.y & ~0x1F;
+	if (direction != NULL) *direction = myDirection;
+	if (mapElement != NULL) *mapElement = myMapElement;
 }

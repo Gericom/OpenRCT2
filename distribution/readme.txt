@@ -1,5 +1,5 @@
-Last updated:    2015-02-06
-Release version: 0.2.0-beta
+Last updated:    2016-12-27
+Release version: 0.0.6.0-beta
 ------------------------------------------------------------------------
 
 
@@ -29,8 +29,8 @@ includes some 3rd party software under different licenses. See the section
 2.0) Contacting
 ---- ----------
 The easiest way to contact the OpenRCT2 team is by submitting issues on GitHub
-(https://github.com/IntelOrca/OpenRCT2) in the form of questions or bug reports.
-You can also chat with us on gitter (https://gitter.im/IntelOrca/OpenRCT2).
+(https://github.com/OpenRCT2/OpenRCT2) in the form of questions or bug reports.
+You can also chat with us on gitter (https://gitter.im/OpenRCT2/OpenRCT2).
 
 2.1) Reporting bugs
 ---- --------------
@@ -68,11 +68,10 @@ following information in your bug report:
 
 3.0) Supported platforms
 ---- -------------------
-OpenRCT2 currently requires the original RollerCoaster Tycoon 2 binary. While
-this is still the case, the only supported platform is Windows. OpenRCT2 can
-still be played on other operating systems either via a virtual machine or a
-compatibility layer application such as Wine. Further instructions can be found
-on GitHub.
+OpenRCT2 is currently supported on Windows Vista and above, many distributions of
+Linux, macOS, and OS X 10.7 or higher. OpenRCT2 will only work on
+little-endian architectures.
+Further instructions can be found on GitHub.
 
 4.0) Installing and running OpenRCT2
 ---- ------------------------------
@@ -82,20 +81,25 @@ be installed, or you have downloaded an installer, which will automatically
 extract OpenRCT2 in the given directory.
 
 OpenRCT2 requires an installation of RollerCoaster Tycoon 2 (RCT2) to run. You
-must have either installed the original RCT2 disc, the GOG version or the steam
+must have either installed the original RCT2 disc, the GOG version or the Steam
 version. Alternatively you can manually specify the location of where your RCT2
 data files are. These may be directly copied of the original disc and placed in
 a directory of your choice.
 
 When you start OpenRCT2 for the first time, it will look for the RCT2 data files
 in the following locations:
-  - C:\Program Files\Infogrames\RollerCoaster Tycoon 2",
-  - C:\Program Files (x86)\Infogrames\RollerCoaster Tycoon 2",
-  - C:\Program Files\Infogrames Interactive\RollerCoaster Tycoon 2",
-  - C:\Program Files (x86)\Infogrames Interactive\RollerCoaster Tycoon 2",
-  - C:\Program Files\Atari\RollerCoaster Tycoon 2",
-  - C:\Program Files (x86)\Atari\RollerCoaster Tycoon 2",
-  - C:\GOG Games\RollerCoaster Tycoon 2 Triple Thrill Pack"
+  - C:\Program Files\Infogrames\RollerCoaster Tycoon 2,
+  - C:\Program Files (x86)\Infogrames\RollerCoaster Tycoon 2,
+  - C:\Program Files\Infogrames Interactive\RollerCoaster Tycoon 2,
+  - C:\Program Files (x86)\Infogrames Interactive\RollerCoaster Tycoon 2,
+  - C:\Program Files\Atari\RollerCoaster Tycoon 2,
+  - C:\Program Files (x86)\Atari\RollerCoaster Tycoon 2,
+  - C:\GOG Games\RollerCoaster Tycoon 2 Triple Thrill Pack,
+  - C:\Program Files\GalaxyClient\Games\RollerCoaster Tycoon 2 Triple Thrill Pack,
+  - C:\Program Files (x86)\GalaxyClient\Games\RollerCoaster Tycoon 2 Triple Thrill Pack,
+  - C:\Program Files\Steam\steamapps\common\Rollercoaster Tycoon 2,
+  - C:\Program Files (x86)\Steam\steamapps\common\Rollercoaster Tycoon 2,
+  - The location of the openrct2.exe (where OpenRCT2 was extracted/installed)
 
 If none of these locations are found, OpenRCT2 will ask you to manually specify
 the directory. Alternatively after running OpenRCT2 for the first time, you can
@@ -104,7 +108,7 @@ the RCT2 install path.
 
 If you are running Windows and have set a DPI scale, OpenRCT2 might look blury.
 This is because OpenRCT2 currently uses the original RollerCoaster Tycoon 2
-binary as a application host. However you can manually configure this binary to
+binary as an application host. However you can manually configure this binary to
 not be scaled. This will make the game more crisp, but may result in the
 interface being too small to see clearly and less ergonomic to use. To stop DPI
 scaling, right click the binary itself (openrct2.exe) in the install directory
@@ -112,18 +116,25 @@ or the OpenRCT2 shortcut either in your start menu or on your desktop and then
 select properties. Select the compatibility tab, check
 "Disable display scaling on high DPI settings" and then click OK.
 
+If you wish to use Steam Overlay or capture game for video recording or
+streaming, you might have to enable hardware display in the options window.
+This will still render the graphics on the CPU but the pixel data will be
+displayed using either DirectX or OpenGL. This may also enable vertical
+synchronisation if supported by your graphics card and you have enabled
+"Uncap FPS".
+
 5.0) Development
 ---- -----------
 OpenRCT2 is an open-source collaborative project. It is developed voluntarily
 and hosted on GitHub. If you would like to contribute to the development of
 OpenRCT2, please read the readme file in the OpenRCT2 repository or on the main
-GitHub page at (https://github.com/IntelOrca/OpenRCT2). This gives more detailed
+GitHub page at (https://github.com/OpenRCT2/OpenRCT2). This gives more detailed
 information about the project, its roadmap and how to compile the source code.
 
 6.0) Translation
 ---- -----------
 For more information about the game's translation and how to contribute, please
-visit the GitHub page and wiki at (https://github.com/IntelOrca/OpenRCT2).
+visit the GitHub page and wiki at (https://github.com/OpenRCT2/OpenRCT2).
 
 7.0) Troubleshooting
 ---- ---------------
@@ -136,11 +147,20 @@ you wish to ask online for help.
 
 8.0) Licensing
 ---- ---------
-OpenRCT2 is licensed under the GNU General Public License version 3.0. For
-the complete license text, see the file 'licence.txt'. This license applies
+OpenRCT2 is licensed under the GNU General Public Licence version 3.0. For
+the complete licence text, see the file 'licence.txt'. This licence applies
 to all files in this distribution, except as noted below.
 
-The Simple DirectMedia Layer (SDL2) library is licensed under the zlib licence.
+Jansson  | MIT licence.
+libcURL  | MIT (or Modified BSD-style) licence.
+libspeex | BSD-style licence.
+libpng   | libpng licence.
+libzip   | BSD 3 clause licence.
+SDL2     | zlib licence.
+SDL2 TTF | zlib licence.
+zlib     | zlib licence.
+
+Licences for sub-libraries used by the above may vary. For more information, visit the libraries' respective official websites.
 
 9.0) Credits
 ---- -------
