@@ -21,7 +21,6 @@ artifacts
 .dependencies
 
 #lib
-lib
 libversion
 
 #sequences
