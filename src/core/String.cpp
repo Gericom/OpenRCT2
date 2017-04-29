@@ -18,6 +18,7 @@
 
 extern "C"
 {
+	#include "../platform/platform.h"
     #include "../localisation/localisation.h"
     #include "../util/util.h"
 }

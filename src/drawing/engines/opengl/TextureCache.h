@@ -19,7 +19,6 @@
 #include <algorithm>
 #include <unordered_map>
 #include <vector>
-#include <SDL_pixels.h>
 #include "../../../common.h"
 #include "OpenGLAPI.h"
 #include "GLSLTypes.h"

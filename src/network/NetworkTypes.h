@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <SDL_endian.h>
-#include <SDL_platform.h>
 
 #ifndef DISABLE_NETWORK
 

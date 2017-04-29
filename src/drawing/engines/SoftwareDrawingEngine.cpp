@@ -14,12 +14,14 @@
  *****************************************************************************/
 #pragma endregion
 
+#include "../../core/Console.hpp"
 #include "../../core/Guard.hpp"
 #include "../../core/Math.hpp"
 #include "../../core/Memory.hpp"
 #include "../IDrawingContext.h"
 #include "../IDrawingEngine.h"
 #include "../Rain.h"
+#include "mem2heap.h"
 
 extern "C"
 {
@@ -187,15 +189,15 @@ class SoftwareDrawingEngine final : public IDrawingEngine
 private:
     bool _hardwareDisplay;
 
-    SDL_Window *    _window         = nullptr;
-    SDL_Surface *   _surface        = nullptr;
-    SDL_Surface *   _RGBASurface    = nullptr;
-    SDL_Palette *   _palette        = nullptr;
+   // SDL_Window *    _window         = nullptr;
+    //SDL_Surface *   _surface        = nullptr;
+    //SDL_Surface *   _RGBASurface    = nullptr;
+    //SDL_Palette *   _palette        = nullptr;
 
     // For hardware display only
-    SDL_Renderer *      _sdlRenderer            = nullptr;
-    SDL_Texture *       _screenTexture          = nullptr;
-    SDL_PixelFormat *   _screenTextureFormat    = nullptr;
+    //SDL_Renderer *      _sdlRenderer            = nullptr;
+    //SDL_Texture *       _screenTexture          = nullptr;
+    //SDL_PixelFormat *   _screenTextureFormat    = nullptr;
     uint32              _paletteHWMapped[256] = { 0 };
 #ifdef __ENABLE_LIGHTFX__
     uint32              _lightPaletteHWMapped[256] = { 0 };
@@ -232,22 +234,23 @@ public:
         delete _drawingContext;
         delete [] _dirtyGrid.Blocks;
         delete [] _bits;
-        SDL_FreeSurface(_surface);
+       /* SDL_FreeSurface(_surface);
         SDL_FreeSurface(_RGBASurface);
         SDL_FreePalette(_palette);
         SDL_DestroyTexture(_screenTexture);
         SDL_FreeFormat(_screenTextureFormat);
-        SDL_DestroyRenderer(_sdlRenderer);
+        SDL_DestroyRenderer(_sdlRenderer);*/
     }
 
-    void Initialise(SDL_Window * window) override
+	void Initialise()/*SDL_Window * window)*/ override
     {
-        _window = window;
+       // _window = window;
     }
 
     void Resize(uint32 width, uint32 height) override
     {
-        SDL_FreeSurface(_surface);
+		ConfigureBits(width, height, width);
+        /*SDL_FreeSurface(_surface);
         SDL_FreeSurface(_RGBASurface);
         SDL_FreePalette(_palette);
         SDL_DestroyTexture(_screenTexture);
@@ -303,12 +306,19 @@ public:
             }
 
             ConfigureBits(width, height, _surface->pitch);
-        }
+        }*/
     }
 
     void SetPalette(SDL_Color * palette) override
     {
-        if (_hardwareDisplay)
+		for (int i = 0; i < 256; i++)
+        {
+			int y = ((palette[i].r * 257 + palette[i].g * 504 + palette[i].b * 98) + 500) / 1000 + 16;
+			int u = ((palette[i].r * -148 + palette[i].g * -291 + palette[i].b * 439) + 500) / 1000 + 128;
+			int v = ((palette[i].r * 439 + palette[i].g * -368 + palette[i].b * -71) + 500) / 1000 + 128;
+			_paletteHWMapped[i] = y | (u << 8) | (v << 16);
+		}
+        /*if (_hardwareDisplay)
         {
             if (_screenTextureFormat != nullptr)
             {
@@ -338,7 +348,7 @@ public:
                 log_fatal("SDL_SetPaletteColors failed %s", SDL_GetError());
                 exit(1);
             }
-        }
+        }*/
     }
 
     void SetUncappedFrameRate(bool uncapped) override
@@ -348,10 +358,10 @@ public:
 
     void Invalidate(sint32 left, sint32 top, sint32 right, sint32 bottom) override
     {
-        left = Math::Max(left, 0);
-        top = Math::Max(top, 0);
-        right = Math::Min(right, (sint32)_width);
-        bottom = Math::Min(bottom, (sint32)_height);
+        left = Math::Max<sint32>(left, 0);
+        top = Math::Max<sint32>(top, 0);
+        right = Math::Min<sint32>(right, (sint32)_width);
+        bottom = Math::Min<sint32>(bottom, (sint32)_height);
 
         if (left >= right) return;
         if (top >= bottom) return;
@@ -421,10 +431,10 @@ public:
         // NOTE: when zooming, there can be x, y, dx, dy combinations that go off the
         // screen; hence the checks. This code should ultimately not be called when
         // zooming because this function is specific to updating the screen on move
-        int lmargin = Math::Min(x - dx, 0);
-        int rmargin = Math::Min((sint32)_width - (x - dx + width), 0);
-        int tmargin = Math::Min(y - dy, 0);
-        int bmargin = Math::Min((sint32)_height - (y - dy + height), 0);
+        int lmargin = Math::Min<sint32>(x - dx, 0);
+        int rmargin = Math::Min<sint32>((sint32)_width - (x - dx + width), 0);
+        int tmargin = Math::Min<sint32>(y - dy, 0);
+        int bmargin = Math::Min<sint32>((sint32)_height - (y - dy + height), 0);
         x -= lmargin;
         y -= tmargin;
         width += lmargin + rmargin;
@@ -487,7 +497,7 @@ private:
     void ConfigureBits(uint32 width, uint32 height, uint32 pitch)
     {
         size_t  newBitsSize = pitch * height;
-        uint8 * newBits = new uint8[newBitsSize];
+        uint8 * newBits = (uint8*)mem2heap_alloc(newBitsSize);//new uint8[newBitsSize];
         if (_bits == nullptr)
         {
             Memory::Set(newBits, 0, newBitsSize);
@@ -516,8 +526,9 @@ private:
                     dst += pitch;
                 }
             }
-            delete [] _bits;
-        }
+			mem2heap_free(_bits);
+            //delete [] _bits;
+		}
 
         _bits = newBits;
         _bitsSize = newBitsSize;
@@ -549,8 +560,9 @@ private:
         _dirtyGrid.BlockColumns = (_width >> _dirtyGrid.BlockShiftX) + 1;
         _dirtyGrid.BlockRows = (_height >> _dirtyGrid.BlockShiftY) + 1;
 
-        delete [] _dirtyGrid.Blocks;
-        _dirtyGrid.Blocks = new uint8[_dirtyGrid.BlockColumns * _dirtyGrid.BlockRows];
+        //delete [] _dirtyGrid.Blocks;
+		mem2heap_free(_dirtyGrid.Blocks);
+        _dirtyGrid.Blocks = (uint8*)mem2heap_alloc(_dirtyGrid.BlockColumns * _dirtyGrid.BlockRows);//new uint8[_dirtyGrid.BlockColumns * _dirtyGrid.BlockRows];
     }
 
     static void ResetWindowVisbilities()
@@ -643,7 +655,7 @@ private:
     void Display()
     {
         // Lock the surface before setting its pixels
-        if (SDL_MUSTLOCK(_surface))
+       /* if (SDL_MUSTLOCK(_surface))
         {
             if (SDL_LockSurface(_surface) < 0)
             {
@@ -692,11 +704,45 @@ private:
         {
             log_fatal("SDL_UpdateWindowSurface %s", SDL_GetError());
             exit(1);
-        }
+        }*/
+		uint32_t* framebuffer = (uint32_t*)VIDEO_GetCurrentFramebuffer();
+		//blitting
+		for(int y = 0; y < _height; y++)
+		{
+			for(int x = 0; x < _width; x+=2)
+			{
+				u32 a = _paletteHWMapped[_bits[y * _pitch + x]];
+				u32 b = _paletteHWMapped[_bits[y * _pitch + x + 1]];
+				u32 val = ((a & 0xFF) << 24) | (((((a >> 8) & 0xFF) + ((b >> 8) & 0xFF)) / 2) << 16) | ((b & 0xFF) << 8) | ((((a >> 16) & 0xFF) + ((b >> 16) & 0xFF)) / 2);
+				*framebuffer++ = val;
+			}
+		}
+		//draw cursor square
+		int cxstart = gCursorState.x - 4;
+		if(cxstart < 0)
+			cxstart = 0;
+		int cxend = gCursorState.x + 4;
+		if(cxend >= _width)
+			cxend = _width - 1;
+		int cystart = gCursorState.y - 4;
+		if(cystart < 0)
+			cystart = 0;
+		int cyend = gCursorState.y + 4;
+		if(cyend >= _height)
+			cyend = _height - 1;
+		framebuffer = (uint32_t*)VIDEO_GetCurrentFramebuffer();
+		for(int y = cystart; y < cyend; y++)
+		{
+			for(int x = cxstart; x < cxend; x+=2)
+			{
+				framebuffer[y * (_width / 2) + (x / 2)] = COLOR_WHITE;
+			}
+		}
     }
 
     void DisplayViaTexture()
     {
+		/*
 #ifdef __ENABLE_LIGHTFX__
         lightfx_render_to_texture(_screenTexture, _bits, _width, _height, _paletteHWMapped, _lightPaletteHWMapped);
 #else
@@ -714,12 +760,12 @@ private:
         if (gSteamOverlayActive && gConfigGeneral.steam_overlay_pause)
         {
             OverlayPostRenderCheck();
-        }
+        }*/
     }
 
-    void CopyBitsToTexture(SDL_Texture * texture, uint8 * src, sint32 width, sint32 height, uint32 * palette)
+    /*void CopyBitsToTexture(SDL_Texture * texture, uint8 * src, sint32 width, sint32 height, uint32 * palette)
     {
-        void *  pixels;
+        /*void *  pixels;
         int     pitch;
         if (SDL_LockTexture(texture, nullptr, &pixels, &pitch) == 0)
         {
@@ -763,12 +809,12 @@ private:
             }
             SDL_UnlockTexture(texture);
         }
-    }
+    }*/
 
     void ReadCentrePixel(uint32 * pixel)
     {
-        SDL_Rect centrePixelRegion = { (sint32)(_width / 2), (sint32)(_height / 2), 1, 1 };
-        SDL_RenderReadPixels(_sdlRenderer, &centrePixelRegion, SDL_PIXELFORMAT_RGBA8888, pixel, sizeof(uint32));
+        //SDL_Rect centrePixelRegion = { (sint32)(_width / 2), (sint32)(_height / 2), 1, 1 };
+        //SDL_RenderReadPixels(_sdlRenderer, &centrePixelRegion, SDL_PIXELFORMAT_RGBA8888, pixel, sizeof(uint32));
     }
 
     // Should be called before SDL_RenderPresent to capture frame buffer before Steam overlay is drawn.

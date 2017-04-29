@@ -276,6 +276,8 @@ private:
     bool Load()
     {
         std::string path = _env->GetFilePath(PATHID::CACHE_TRACKS);
+		if(!platform_file_exists(path.c_str()))
+			return false;
         bool result = false;
         try
         {

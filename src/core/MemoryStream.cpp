@@ -17,6 +17,7 @@
 #include "Math.hpp"
 #include "Memory.hpp"
 #include "MemoryStream.h"
+#include "mem2heap.h"
 
 MemoryStream::MemoryStream()
 {
@@ -71,7 +72,10 @@ MemoryStream::~MemoryStream()
 {
     if (_access & MEMORY_ACCESS_OWNER)
     {
-        Memory::Free(_data);
+		if(_access & MEMORY_ACCESS_MEM2)
+			mem2heap_free(_data);
+		else
+			Memory::Free(_data);
     }
     _dataCapacity = 0;
     _dataSize = 0;

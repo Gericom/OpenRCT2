@@ -24,6 +24,13 @@ typedef struct rct_research_item {
 	// Bit 16 (0: scenery entry, 1: ride entry)
 	sint32 entryIndex;
 	uint8 category;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		entryIndex = SDL_SwapLE32(entryIndex);
+	}
+#endif
 } rct_research_item;
 assert_struct_size(rct_research_item, 5);
 #pragma pack(pop)

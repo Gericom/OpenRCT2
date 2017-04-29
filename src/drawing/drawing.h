@@ -355,7 +355,7 @@ void gfx_draw_string_with_y_offsets(rct_drawpixelinfo *dpi, const utf8 *text, in
 int gfx_clip_string(char* buffer, int width);
 void shorten_path(utf8 *buffer, size_t bufferSize, const utf8 *path, int availableWidth);
 //SDL_Surface *ttf_surface_cache_get_or_add(TTF_Font *font, const utf8 *text);
-TTFFontDescriptor *ttf_get_font_from_sprite_base(uint16 spriteBase);
+//TTFFontDescriptor *ttf_get_font_from_sprite_base(uint16 spriteBase);
 
 bool ttf_initialise();
 void ttf_dispose();

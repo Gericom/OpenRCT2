@@ -24,6 +24,7 @@ enum MEMORY_ACCESS
     MEMORY_ACCESS_READ      = 1 << 0,
     MEMORY_ACCESS_WRITE     = 1 << 1,
     MEMORY_ACCESS_OWNER     = 1 << 2,
+	MEMORY_ACCESS_MEM2     = 1 << 3,
 };
 
 /**

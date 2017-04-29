@@ -59,6 +59,14 @@ typedef struct rct_object_entry {
 	uint32 flags;
 	char name[8];
 	uint32 checksum;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		flags = SDL_SwapLE32(flags);
+		checksum = SDL_SwapLE32(checksum);
+	}
+#endif
 } rct_object_entry;
 assert_struct_size(rct_object_entry, 0x10);
 

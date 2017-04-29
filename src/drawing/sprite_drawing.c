@@ -20,6 +20,10 @@
 #include "../sprites.h"
 #include "../util/util.h"
 #include "drawing.h"
+#include "../mem2heap.h"
+#include <ogc/machine/processor.h>
+
+#define ROUNDDOWN32(v)				(((u32)(v)-0x1f)&~0x1f)
 
 void *_g1Buffer = NULL;
 
@@ -50,13 +54,13 @@ static void read_and_convert_gxdat(SDL_RWops *file, size_t count, rct_g1_element
 		/* Double cast to silence compiler warning about casting to
 		 * pointer from integer of mismatched length.
 		 */
-		elements[i].offset        = (uint8*)(uintptr_t)g1Elements32[i].offset;
-		elements[i].width         = g1Elements32[i].width;
-		elements[i].height        = g1Elements32[i].height;
-		elements[i].x_offset      = g1Elements32[i].x_offset;
-		elements[i].y_offset      = g1Elements32[i].y_offset;
-		elements[i].flags         = g1Elements32[i].flags;
-		elements[i].zoomed_offset = g1Elements32[i].zoomed_offset;
+		elements[i].offset        = (uint8*)(uintptr_t)SDL_SwapLE32(g1Elements32[i].offset);
+		elements[i].width         = SDL_SwapLE16(g1Elements32[i].width);
+		elements[i].height        = SDL_SwapLE16(g1Elements32[i].height);
+		elements[i].x_offset      = SDL_SwapLE16(g1Elements32[i].x_offset);
+		elements[i].y_offset      = SDL_SwapLE16(g1Elements32[i].y_offset);
+		elements[i].flags         = SDL_SwapLE16(g1Elements32[i].flags);
+		elements[i].zoomed_offset = SDL_SwapLE16(g1Elements32[i].zoomed_offset);
 	}
 	free(g1Elements32);
 }
@@ -99,15 +103,29 @@ bool gfx_load_g1()
 			 */
 			header.num_entries = 29294;
 
+			//fix header endianness
+			header.total_size = SDL_SwapLE32(header.total_size);
+
+
 			// Read element headers
 #ifdef NO_RCT2
+			log_verbose("calloc(324206, sizeof(rct_g1_element))");
 			g1Elements = calloc(324206, sizeof(rct_g1_element));
+			log_verbose("done %p", g1Elements);
 #endif
 
 			read_and_convert_gxdat(file, header.num_entries, g1Elements);
+			log_verbose("read_and_convert_gxdat(file, header.num_entries, g1Elements); done");
 
 			// Read element data
-			_g1Buffer = malloc(header.total_size);
+			//log_verbose("malloc(%d)", header.total_size);
+			//_g1Buffer = malloc(header.total_size);
+			//log_verbose("done (%p)", _g1Buffer);
+			//while(1);
+			_g1Buffer = mem2heap_alloc(header.total_size);
+
+			log_verbose("_g1Buffer: %p", _g1Buffer);
+
 			SDL_RWread(file, _g1Buffer, header.total_size, 1);
 
 			SDL_RWclose(file);
@@ -130,7 +148,9 @@ bool gfx_load_g1()
 
 void gfx_unload_g1()
 {
-	SafeFree(_g1Buffer);
+	//SafeFree(_g1Buffer);
+	if(_g1Buffer != NULL)
+		mem2heap_free(_g1Buffer);
 #ifdef NO_RCT2
 	SafeFree(g1Elements);
 #endif
@@ -138,7 +158,9 @@ void gfx_unload_g1()
 
 void gfx_unload_g2()
 {
-	SafeFree(g2.elements);
+	if(g2.elements != NULL)
+		mem2heap_free(g2.elements);
+	//SafeFree(g2.elements);
 }
 
 bool gfx_load_g2()
@@ -152,13 +174,15 @@ bool gfx_load_g2()
 	SDL_RWops *file = SDL_RWFromFile(path, "rb");
 	if (file != NULL) {
 		if (SDL_RWread(file, &g2.header, 8, 1) == 1) {
+			g2.header.num_entries = SDL_SwapLE32(g2.header.num_entries);
+			g2.header.total_size = SDL_SwapLE32(g2.header.total_size);
 			// Read element headers
-			g2.elements = malloc(g2.header.num_entries * sizeof(rct_g1_element));
+			g2.elements = mem2heap_alloc(g2.header.num_entries * sizeof(rct_g1_element));//malloc(g2.header.num_entries * sizeof(rct_g1_element));
 
 			read_and_convert_gxdat(file, g2.header.num_entries, g2.elements);
 
 			// Read element data
-			g2.data = malloc(g2.header.total_size);
+			g2.data = mem2heap_alloc(g2.header.total_size);//malloc(g2.header.total_size);
 			SDL_RWread(file, g2.data, g2.header.total_size, 1);
 
 			SDL_RWclose(file);

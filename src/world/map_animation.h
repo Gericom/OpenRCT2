@@ -29,6 +29,14 @@ typedef struct rct_map_animation {
 	uint8 type;
 	uint16 x;
 	uint16 y;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+	}
+#endif
 } rct_map_animation;
 assert_struct_size(rct_map_animation, 6);
 #pragma pack(pop)

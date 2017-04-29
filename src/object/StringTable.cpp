@@ -17,12 +17,14 @@
 #include <algorithm>
 #include "../core/IStream.hpp"
 #include "../core/String.hpp"
+#include "../core/Console.hpp"
 #include "../localisation/LanguagePack.h"
 #include "Object.h"
 #include "StringTable.h"
 
 extern "C"
 {
+	#include "../platform/platform.h"
     #include "../localisation/localisation.h"
 }
 
@@ -58,8 +60,9 @@ void StringTable::Read(IReadObjectContext * context, IStream * stream, uint8 id)
             entry.LanguageId = languageId;
 
             std::string stringAsWin1252 = stream->ReadStdString();
+			//Console::WriteLine("%s", stringAsWin1252);
             utf8 * stringAsUtf8 = rct2_language_string_to_utf8(stringAsWin1252.c_str(), stringAsWin1252.size(), languageId);
-
+			//Console::WriteLine("%s", stringAsUtf8);
             if (StringIsBlank(stringAsUtf8))
             {
                 entry.LanguageId = RCT2_LANGUAGE_ID_BLANK;
@@ -72,6 +75,7 @@ void StringTable::Read(IReadObjectContext * context, IStream * stream, uint8 id)
     }
     catch (const Exception &)
     {
+		Console::WriteLine("Bad string table.");
         context->LogError(OBJECT_ERROR_BAD_STRING_TABLE, "Bad string table.");
         throw;
     }

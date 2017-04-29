@@ -44,6 +44,15 @@ typedef struct rct_s6_header {
 	uint32 version;				// 0x04
 	uint32 magic_number;		// 0x08
 	uint8 pad_0C[0x14];
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		num_packed_objects = SDL_SwapLE16(num_packed_objects);
+		version = SDL_SwapLE32(version);
+		magic_number = SDL_SwapLE32(magic_number);
+	}
+#endif
 } rct_s6_header;
 assert_struct_size(rct_s6_header, 0x20);
 
@@ -62,6 +71,15 @@ typedef struct rct_s6_info {
 	char name[64];				// 0x48
 	char details[256];			// 0x88
 	rct_object_entry entry;		// 0x188
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		objective_arg_2 = SDL_SwapLE32(objective_arg_2);
+		objective_arg_3 = SDL_SwapLE16(objective_arg_3);
+		entry.swapEndianness();
+	}
+#endif
 } rct_s6_info;
 assert_struct_size(rct_s6_info, 0x198);
 
@@ -74,6 +92,16 @@ typedef struct rct_scenario_scores_header {
 	uint32 var_4;
 	uint32 var_8;
 	uint32 scenario_count;		// 0x0C
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		var_0 = SDL_SwapLE32(var_0);
+		var_4 = SDL_SwapLE32(var_4);
+		var_8 = SDL_SwapLE32(var_8);
+		scenario_count = SDL_SwapLE32(scenario_count);
+	}
+#endif
 } rct_scenario_scores_header;
 assert_struct_size(rct_scenario_scores_header, 16);
 
@@ -107,6 +135,16 @@ typedef struct rct_scenario_basic {
 	char completed_by[64];		// 0x0270
 	// uint8 source_game;			// new in OpenRCT2
 	// sint16 source_index;		// new in OpenRCT2
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		objective_arg_2 = SDL_SwapLE32(objective_arg_2);
+		objective_arg_3 = SDL_SwapLE16(objective_arg_3);
+		flags = SDL_SwapLE32(flags);
+		company_value = SDL_SwapLE32(company_value);
+	}
+#endif
 } rct_scenario_basic;
 assert_struct_size(rct_scenario_basic, 0x02B0);
 
@@ -115,6 +153,15 @@ typedef struct rct_stex_entry {
 	rct_string_id park_name;		// 0x02
 	rct_string_id details;			// 0x04
 	uint8 var_06;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		scenario_name = SDL_SwapLE16(scenario_name);
+		park_name = SDL_SwapLE16(park_name);
+		details = SDL_SwapLE16(details);
+	}
+#endif
 } rct_stex_entry;
 assert_struct_size(rct_stex_entry, 7);
 
@@ -329,6 +376,135 @@ typedef struct rct_s6_data {
 	uint16 wide_path_tile_loop_x;
 	uint16 wide_path_tile_loop_y;
 	uint8 pad_13CE778[434];
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		header.swapEndianness();
+		info.swapEndianness();
+		for(int i = 0; i < (721); i++)
+			objects[i].swapEndianness();
+		elapsed_months = SDL_SwapLE16(elapsed_months);
+		current_day = SDL_SwapLE16(current_day);
+		scenario_ticks = SDL_SwapLE32(scenario_ticks);
+		scenario_srand_0 = SDL_SwapLE32(scenario_srand_0);
+		scenario_srand_1 = SDL_SwapLE32(scenario_srand_1);
+		for(int i = 0; i < (0x30000); i++)
+			map_elements[i].swapEndianness();
+		next_free_map_element_pointer_index = SDL_SwapLE32(next_free_map_element_pointer_index);
+		for(int i = 0; i < (10000); i++)
+			sprites[i].swapEndianness();
+		for(int i = 0; i < (6); i++)
+			sprite_lists_head[i] = SDL_SwapLE16(sprite_lists_head[i]);
+		for(int i = 0; i < (6); i++)
+			sprite_lists_count[i] = SDL_SwapLE16(sprite_lists_count[i]);
+		park_name = SDL_SwapLE16(park_name);
+		park_name_args = SDL_SwapLE32(park_name_args);
+		initial_cash = SDL_SwapLE32(initial_cash);
+		current_loan = SDL_SwapLE32(current_loan);
+		park_flags = SDL_SwapLE32(park_flags);
+		park_entrance_fee = SDL_SwapLE16(park_entrance_fee);
+		rct1_park_entrance_x = SDL_SwapLE16(rct1_park_entrance_x);
+		rct1_park_entrance_y = SDL_SwapLE16(rct1_park_entrance_y);
+		for(int i = 0; i < (2); i++)
+			peep_spawns[i].swapEndianness();
+		for(int i = 0; i < (8); i++)
+			researched_ride_types[i] = SDL_SwapLE32(researched_ride_types[i]);
+		for(int i = 0; i < (8); i++)
+			researched_ride_entries[i] = SDL_SwapLE32(researched_ride_entries[i]);
+		for(int i = 0; i < (128); i++)
+			researched_track_types_a[i] = SDL_SwapLE32(researched_track_types_a[i]);
+		for(int i = 0; i < (128); i++)
+			researched_track_types_b[i] = SDL_SwapLE32(researched_track_types_b[i]);
+		guests_in_park = SDL_SwapLE16(guests_in_park);
+		guests_heading_for_park = SDL_SwapLE16(guests_heading_for_park);
+		for(int i = 0; i < (224); i++)
+			expenditure_table[i] = SDL_SwapLE32(expenditure_table[i]);
+		last_guests_in_park = SDL_SwapLE16(last_guests_in_park);
+		for(int i = 0; i < (56); i++)
+			researched_scenery_items[i] = SDL_SwapLE32(researched_scenery_items[i]);
+		park_rating = SDL_SwapLE16(park_rating);
+		last_researched_item_subject = SDL_SwapLE32(last_researched_item_subject);
+		next_research_item = SDL_SwapLE32(next_research_item);
+		research_progress = SDL_SwapLE16(research_progress);
+		park_size = SDL_SwapLE16(park_size);
+		guest_generation_probability = SDL_SwapLE16(guest_generation_probability);
+		total_ride_value = SDL_SwapLE16(total_ride_value);
+		maximum_loan = SDL_SwapLE32(maximum_loan);
+		guest_initial_cash = SDL_SwapLE16(guest_initial_cash);
+		objective_currency = SDL_SwapLE32(objective_currency);
+		objective_guests = SDL_SwapLE16(objective_guests);
+		for(int i = 0; i < (128); i++)
+			balance_history[i] = SDL_SwapLE32(balance_history[i]);
+		current_expenditure = SDL_SwapLE32(current_expenditure);
+		current_profit = SDL_SwapLE32(current_profit);
+		weekly_profit_average_dividend = SDL_SwapLE32(weekly_profit_average_dividend);
+		weekly_profit_average_divisor = SDL_SwapLE16(weekly_profit_average_divisor);
+		for(int i = 0; i < (128); i++)
+			weekly_profit_history[i] = SDL_SwapLE32(weekly_profit_history[i]);
+		park_value = SDL_SwapLE32(park_value);
+		for(int i = 0; i < (128); i++)
+			park_value_history[i] = SDL_SwapLE32(park_value_history[i]);
+		completed_company_value = SDL_SwapLE32(completed_company_value);
+		total_admissions = SDL_SwapLE32(total_admissions);
+		income_from_admissions = SDL_SwapLE32(income_from_admissions);
+		company_value = SDL_SwapLE32(company_value);
+		for(int i = 0; i < (MAX_AWARDS); i++)
+			awards[i].swapEndianness();
+		land_price = SDL_SwapLE16(land_price);
+		construction_rights_price = SDL_SwapLE16(construction_rights_price);
+		word_01358774 = SDL_SwapLE16(word_01358774);
+		cd_key = SDL_SwapLE32(cd_key);
+		game_version_number = SDL_SwapLE32(game_version_number);
+		completed_company_value_record = SDL_SwapLE32(completed_company_value_record);
+		loan_hash = SDL_SwapLE32(loan_hash);
+		ride_count = SDL_SwapLE16(ride_count);
+		historical_profit = SDL_SwapLE32(historical_profit);
+		cash = SDL_SwapLE32(cash);
+		park_rating_casualty_penalty = SDL_SwapLE16(park_rating_casualty_penalty);
+		map_size_units = SDL_SwapLE16(map_size_units);
+		map_size_minus_2 = SDL_SwapLE16(map_size_minus_2);
+		map_size = SDL_SwapLE16(map_size);
+		map_max_xy = SDL_SwapLE16(map_max_xy);
+		same_price_throughout = SDL_SwapLE32(same_price_throughout);
+		suggested_max_guests = SDL_SwapLE16(suggested_max_guests);
+		park_rating_warning_days = SDL_SwapLE16(park_rating_warning_days);
+		for(int i = 0; i < (500); i++)
+			research_items[i].swapEndianness();
+		map_base_z = SDL_SwapLE16(map_base_z);
+		same_price_throughout_extended = SDL_SwapLE32(same_price_throughout_extended);
+		for(int i = 0; i < (4); i++)
+			park_entrance_x[i] = SDL_SwapLE16(park_entrance_x[i]);
+		for(int i = 0; i < (4); i++)
+			park_entrance_y[i] = SDL_SwapLE16(park_entrance_y[i]);
+		for(int i = 0; i < (4); i++)
+			park_entrance_z[i] = SDL_SwapLE16(park_entrance_z[i]);
+		for(int i = 0; i < (250); i++)
+			banners[i].swapEndianness();
+		game_ticks_1 = SDL_SwapLE32(game_ticks_1);
+		for(int i = 0; i < (255); i++)
+			rides[i].swapEndianness();
+		saved_age = SDL_SwapLE16(saved_age);
+		saved_view_x = SDL_SwapLE16(saved_view_x);
+		saved_view_y = SDL_SwapLE16(saved_view_y);
+		for(int i = 0; i < (2000); i++)
+			map_animations[i].swapEndianness();
+		num_map_animations = SDL_SwapLE16(num_map_animations);
+		ride_ratings_calc_data.swapEndianness();
+		for(int i = 0; i < (8); i++)
+			ride_measurements[i].swapEndianness();
+		next_guest_index = SDL_SwapLE32(next_guest_index);
+		grass_and_scenery_tilepos = SDL_SwapLE16(grass_and_scenery_tilepos);
+		for(int i = 0; i < (204 * 128); i++)
+			patrol_areas[i] = SDL_SwapLE32(patrol_areas[i]);
+		climate_update_timer = SDL_SwapLE16(climate_update_timer);
+		for(int i = 0; i < (MAX_NEWS_ITEMS); i++)
+			news_items[i].swapEndianness();
+		rct1_scenario_flags = SDL_SwapLE32(rct1_scenario_flags);
+		wide_path_tile_loop_x = SDL_SwapLE16(wide_path_tile_loop_x);
+		wide_path_tile_loop_y = SDL_SwapLE16(wide_path_tile_loop_y);
+	}
+#endif
 } rct_s6_data;
 assert_struct_size(rct_s6_data, 0x46b44a);
 #pragma pack(pop)

@@ -33,6 +33,7 @@
 #include "StexObject.h"
 #include "WallObject.h"
 #include "WaterObject.h"
+#include "mem2heap.h"
 
 extern "C"
 {
@@ -105,7 +106,7 @@ namespace ObjectFactory
     static MemoryStream * GetDecodedChunkStream(IReadObjectContext * context, SDL_RWops * file)
     {
         size_t bufferSize = 0x600000;
-        void * buffer = Memory::Allocate<void>(bufferSize);
+        void * buffer = mem2heap_alloc(bufferSize);//Memory::Allocate<uint8_t>(bufferSize);
         if (buffer == nullptr)
         {
             log_error("Unable to allocate data buffer.");
@@ -116,18 +117,20 @@ namespace ObjectFactory
         if (bufferSize == SIZE_MAX)
         {
             context->LogError(OBJECT_ERROR_BAD_ENCODING, "Unable to decode chunk.");
-            Memory::Free(buffer);
+			mem2heap_free(buffer);
+            //Memory::Free(buffer);
             return nullptr;
         }
         else
         {
-            buffer = Memory::Reallocate(buffer, bufferSize);
-            return new MemoryStream(buffer, bufferSize, MEMORY_ACCESS_READ | MEMORY_ACCESS_OWNER);
+            buffer = mem2heap_realloc(buffer, bufferSize);//Memory::Reallocate(buffer, bufferSize);
+            return new MemoryStream(buffer, bufferSize, MEMORY_ACCESS_READ | MEMORY_ACCESS_OWNER | MEMORY_ACCESS_MEM2);
         }
     }
 
     Object * CreateObjectFromLegacyFile(const utf8 * path)
     {
+		Console::WriteLine("Loading: '%s'", path);
         Object * result = nullptr;
 
         SDL_RWops * file = SDL_RWFromFile(path, "rb");
@@ -136,6 +139,7 @@ namespace ObjectFactory
             rct_object_entry entry;
             if (SDL_RWread(file, &entry, sizeof(entry), 1) == 1)
             {
+				entry.swapEndianness();
                 result = CreateObject(entry);
                 if (result != nullptr)
                 {

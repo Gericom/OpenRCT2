@@ -15,7 +15,6 @@
 #pragma endregion
 
 #include <stdarg.h>
-#include <SDL_scancode.h>
 
 #include "../config.h"
 #include "../drawing/drawing.h"
@@ -106,6 +105,8 @@ void console_toggle()
 	else
 		console_open();
 }
+
+#undef console_init
 
 static void console_init()
 {
@@ -249,7 +250,7 @@ void console_draw(rct_drawpixelinfo *dpi)
 
 void console_input(int c)
 {
-	switch (c) {
+	/*switch (c) {
 	case SDL_SCANCODE_ESCAPE:
 		console_clear_input();
 		console_refresh_caret();
@@ -282,7 +283,7 @@ void console_input(int c)
 			console_clear_input();
 		}
 		break;
-	}
+	}*/
 }
 
 static void console_invalidate()

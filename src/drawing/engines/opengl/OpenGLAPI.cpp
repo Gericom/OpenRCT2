@@ -21,8 +21,6 @@
 
 #if OPENGL_NO_LINK
 
-#include <SDL_video.h>
-
 #include "../../../core/Console.hpp"
 
 template <typename T>

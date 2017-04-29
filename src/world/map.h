@@ -39,6 +39,7 @@ typedef struct rct_map_element_path_properties {
 } rct_map_element_path_properties;
 assert_struct_size(rct_map_element_path_properties, 4);
 
+//I should add a swapEndianness for maze_entry!
 typedef struct rct_map_element_track_properties {
 	uint8 type; //4
 	union{
@@ -49,6 +50,14 @@ typedef struct rct_map_element_track_properties {
 		uint16 maze_entry; // 5
 	};
 	uint8 ride_index; //7
+
+#ifdef __cplusplus
+	void swapEndianness() 
+	{ 
+		if(type == 20)//RIDE_TYPE_MAZE)
+			maze_entry = SDL_SwapLE16(maze_entry);
+	}
+#endif
 } rct_map_element_track_properties;
 assert_struct_size(rct_map_element_track_properties, 4);
 
@@ -77,6 +86,13 @@ assert_struct_size(rct_map_element_fence_properties, 4);
 typedef struct rct_map_element_scenerymultiple_properties {
 	uint16 type; //4
 	uint8 colour[2]; //6
+
+#ifdef __cplusplus
+	void swapEndianness() 
+	{ 
+		type = SDL_SwapLE16(type);
+	}
+#endif
 } rct_map_element_scenerymultiple_properties;
 assert_struct_size(rct_map_element_scenerymultiple_properties, 4);
 
@@ -100,27 +116,6 @@ typedef union {
 } rct_map_element_properties;
 assert_struct_size(rct_map_element_properties, 4);
 
-/**
- * Map element structure
- * size: 0x08
- */
-typedef struct rct_map_element {
-	uint8 type; //0
-	uint8 flags; //1
-	uint8 base_height; //2
-	uint8 clearance_height; //3
-	rct_map_element_properties properties;
-} rct_map_element;
-assert_struct_size(rct_map_element, 8);
-#pragma pack(pop)
-
-enum {
-	MAP_ELEMENT_QUADRANT_SW,
-	MAP_ELEMENT_QUADRANT_NW,
-	MAP_ELEMENT_QUADRANT_NE,
-	MAP_ELEMENT_QUADRANT_SE
-};
-
 enum {
 	MAP_ELEMENT_TYPE_SURFACE = (0 << 2),
 	MAP_ELEMENT_TYPE_PATH = (1 << 2),
@@ -134,6 +129,44 @@ enum {
 	// elements on a given tile.
 	MAP_ELEMENT_TYPE_CORRUPT = (8 << 2),
 };
+
+
+/**
+ * Map element structure
+ * size: 0x08
+ */
+typedef struct rct_map_element {
+	uint8 type; //0
+	uint8 flags; //1
+	uint8 base_height; //2
+	uint8 clearance_height; //3
+	rct_map_element_properties properties;
+
+#ifdef __cplusplus
+	void swapEndianness() 
+	{ 
+		switch(type & 0x3C)//MAP_ELEMENT_TYPE_MASK)
+		{
+		case MAP_ELEMENT_TYPE_TRACK:
+			properties.track.swapEndianness();
+			break;
+		case MAP_ELEMENT_TYPE_SCENERY_MULTIPLE:
+			properties.scenerymultiple.swapEndianness();
+			break;
+		}
+	}
+#endif
+} rct_map_element;
+assert_struct_size(rct_map_element, 8);
+#pragma pack(pop)
+
+enum {
+	MAP_ELEMENT_QUADRANT_SW,
+	MAP_ELEMENT_QUADRANT_NW,
+	MAP_ELEMENT_QUADRANT_NE,
+	MAP_ELEMENT_QUADRANT_SE
+};
+
 
 enum {
 	MAP_ELEMENT_TYPE_FLAG_HIGHLIGHT = (1 << 6)
@@ -300,6 +333,14 @@ typedef struct rct2_peep_spawn {
 	uint16 y;
 	uint8 z;
 	uint8 direction;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+	}
+#endif
 } rct2_peep_spawn;
 assert_struct_size(rct2_peep_spawn, 6);
 #pragma pack(pop)

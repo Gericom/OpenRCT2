@@ -14,7 +14,6 @@
  *****************************************************************************/
 #pragma endregion
 
-#include <SDL_timer.h>
 
 #include "Stopwatch.hpp"
 

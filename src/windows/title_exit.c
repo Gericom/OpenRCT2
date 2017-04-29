@@ -93,8 +93,8 @@ static void window_title_exit_mouseup(rct_window *w, int widgetIndex)
 	if (gIntroState != INTRO_STATE_NONE)
 		return;
 
-	if (widgetIndex == 0)
-		rct2_quit();
+	//if (widgetIndex == 0)
+	//	rct2_quit();
 // 		game_do_command(0, 1, 0, 0, 5, 3, 0);
 }
 

@@ -19,10 +19,11 @@ extern "C"
     #include "../platform/platform.h"
 }
 
+#include <stdio.h>
+
 #include "Console.hpp"
 
 
-extern "C" void nocashPrint(const char* txt);
 
 namespace Console
 {
@@ -46,22 +47,16 @@ namespace Console
 
     void WriteFormat(const utf8 * format, ...)
     {
-        /*va_list args;
+        va_list args;
 
         va_start(args, format);
-        vfprintf(stdout, format, args);
-        va_end(args);*/
-		va_list args;
-		va_start(args, format);
 
-		char* res;
-		if (vasprintf(&res, format, args) >= 0)
-		{
-			nocashPrint(res);
-			free(res);
-		}
-
-		va_end(args);
+		char buf[1024];
+		vsnprintf(buf, 1024, format, args);
+		platform_print(buf);
+		//printf(buf);
+        //vprintf(format, args);
+        va_end(args);
     }
 
     void WriteLine()
@@ -71,23 +66,16 @@ namespace Console
 
     void WriteLine(const utf8 * format, ...)
     {
-        /*va_list args;
+        va_list args;
 
         va_start(args, format);
-        vfprintf(stdout, format, args);
+        char buf[1024];
+		vsnprintf(buf, 1024, format, args);
+		platform_print(buf);
+		//printf(buf);
+        //vprintf(format, args);
         puts("");
-        va_end(args);*/
-		va_list args;
-		va_start(args, format);
-
-		char* res;
-		if (vasprintf(&res, format, args) >= 0)
-		{
-			nocashPrint(res);
-			free(res);
-		}
-
-		va_end(args);
+        va_end(args);
     }
 
     namespace Error
@@ -104,22 +92,15 @@ namespace Console
 
         void WriteFormat(const utf8 * format, ...)
         {
-            /*va_list args;
+            va_list args;
 
             va_start(args, format);
-            vfprintf(stderr, format, args);
-            va_end(args);*/
-			va_list args;
-			va_start(args, format);
-
-			char* res;
-			if (vasprintf(&res, format, args) >= 0)
-			{
-				nocashPrint(res);
-				free(res);
-			}
-
-			va_end(args);
+            char buf[1024];
+			vsnprintf(buf, 1024, format, args);
+			platform_print(buf);
+			//printf(buf);
+			//vprintf(format, args);
+            va_end(args);
         }
 
         void WriteLine()
@@ -137,14 +118,12 @@ namespace Console
 
         void WriteLine_VA(const utf8 * format, va_list args)
         {
-			char* res;
-			if (vasprintf(&res, format, args) >= 0)
-			{
-				nocashPrint(res);
-				free(res);
-			}
-            //vfprintf(stdout, format, args);
-            //puts("");
+            char buf[1024];
+			vsnprintf(buf, 1024, format, args);
+			platform_print(buf);
+			//printf(buf);
+			//vprintf(format, args);
+            puts("");
         }
     }
 }

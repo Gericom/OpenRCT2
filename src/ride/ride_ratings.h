@@ -40,6 +40,24 @@ typedef struct rct_ride_rating_calc_data {
 	uint16	num_brakes;
 	uint16	num_reversers;
 	uint16	station_flags;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		proximity_x = SDL_SwapLE16(proximity_x);
+		proximity_y = SDL_SwapLE16(proximity_y);
+		proximity_z = SDL_SwapLE16(proximity_z);
+		proximity_start_x = SDL_SwapLE16(proximity_start_x);
+		proximity_start_y = SDL_SwapLE16(proximity_start_y);
+		proximity_start_z = SDL_SwapLE16(proximity_start_z);
+		proximity_total = SDL_SwapLE16(proximity_total);
+		for(int i = 0; i < (26); i++)
+			proximity_scores[i] = SDL_SwapLE16(proximity_scores[i]);
+		num_brakes = SDL_SwapLE16(num_brakes);
+		num_reversers = SDL_SwapLE16(num_reversers);
+		station_flags = SDL_SwapLE16(station_flags);
+	}
+#endif
 } rct_ride_rating_calc_data;
 
 extern rct_ride_rating_calc_data gRideRatingsCalcData;

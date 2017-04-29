@@ -23,6 +23,14 @@
 typedef struct rct_award {
 	uint16 time;
 	uint16 type;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		time = SDL_SwapLE16(time);
+		type = SDL_SwapLE16(type);
+	}
+#endif
 } rct_award;
 assert_struct_size(rct_award, 4);
 #pragma pack(pop)

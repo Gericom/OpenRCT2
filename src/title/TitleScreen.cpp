@@ -87,6 +87,7 @@ static void TryLoadSequence()
                 {
                     _loadedTitleSequenceId = targetSequence;
                     gTitleCurrentSequence = targetSequence;
+					Console::WriteLine("gfx_invalidate_screen");
                     gfx_invalidate_screen();
                     return;
                 }
@@ -119,29 +120,47 @@ extern "C"
 #ifndef DISABLE_NETWORK
         network_close();
 #endif
+		log_verbose("reset_park_entrances");
         reset_park_entrances();
+		log_verbose("user_string_clear_all");
         user_string_clear_all();
+		log_verbose("reset_sprite_list");
         reset_sprite_list();
+		log_verbose("ride_init_all");
         ride_init_all();
+		log_verbose("window_guest_list_init_vars_a");
         window_guest_list_init_vars_a();
+		log_verbose("staff_reset_modes");
         staff_reset_modes();
+		log_verbose("map_init");
         map_init(150);
+		log_verbose("park_init");
         park_init();
+		log_verbose("date_reset");
         date_reset();
+		log_verbose("climate_reset");
         climate_reset(CLIMATE_COOL_AND_WET);
+		log_verbose("scenery_set_default_placement_configuration");
         scenery_set_default_placement_configuration();
+		log_verbose("window_new_ride_init_vars");
         window_new_ride_init_vars();
         window_guest_list_init_vars_b();
         window_staff_list_init_vars();
         map_update_tile_pointers();
         reset_sprite_spatial_index();
         audio_stop_all_music_and_sounds();
+		log_verbose("viewport_init_all");
         viewport_init_all();
         news_item_init_queue();
+		log_verbose("window_main_open");
         window_main_open();
+		log_verbose("title_create_windows");
         title_create_windows();
+		log_verbose("TitleInitialise");
         TitleInitialise();
+		log_verbose("gfx_invalidate_screen");
         gfx_invalidate_screen();
+		log_verbose("audio_start_title_music");
         audio_start_title_music();
         gScreenAge = 0;
 
@@ -165,10 +184,16 @@ extern "C"
      */
     void title_create_windows()
     {
+		log_verbose("(%d, %d)", gScreenWidth, gScreenHeight);
+		log_verbose("window_title_menu_open");
         window_title_menu_open();
+		log_verbose("window_title_exit_open");
         window_title_exit_open();
+		log_verbose("window_title_options_open");
         window_title_options_open();
+		log_verbose("window_title_logo_open");
         window_title_logo_open();
+		log_verbose("window_resize_gui(%d, %d)", gScreenWidth, gScreenHeight);
         window_resize_gui(gScreenWidth, gScreenHeight);
         gTitleHideVersionInfo = false;
     }

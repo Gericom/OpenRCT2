@@ -19,10 +19,6 @@
 // MSVC: include <math.h> here otherwise PI gets defined twice
 #include <math.h>
 
-#include <SDL_platform.h>
-#include <SDL_thread.h>
-#include <SDL_timer.h>
-
 #ifdef __WINDOWS__
     // winsock2 must be included before windows.h
     #include <winsock2.h>

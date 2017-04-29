@@ -17,7 +17,6 @@
 #ifdef __ENABLE_LIGHTFX__
 
 #include "../common.h"
-#include <SDL.h>
 #include "../game.h"
 #include "../rct2.h"
 #include "../interface/viewport.h"

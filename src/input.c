@@ -14,7 +14,6 @@
  *****************************************************************************/
 #pragma endregion
 
-#include <SDL_keycode.h>
 #include "audio/audio.h"
 #include "config.h"
 #include "game.h"
@@ -1403,7 +1402,7 @@ static void input_update_tooltip(rct_window *w, int widgetIndex, int x, int y)
  */
 void title_handle_keyboard_input()
 {
-	rct_window *w;
+	/*rct_window *w;
 	int key;
 
 	if (gOpenRCT2Headless) {
@@ -1456,7 +1455,7 @@ void title_handle_keyboard_input()
 				keyboard_shortcut_handle(key);
 			}
 		}
-	}
+	}*/
 }
 
 /**
@@ -1478,7 +1477,7 @@ void game_handle_keyboard_input()
 
 		// Handle modifier keys and key scrolling
 		gInputPlaceObjectModifier = PLACE_OBJECT_MODIFIER_NONE;
-		if (gKeysState[SDL_SCANCODE_LSHIFT] || gKeysState[SDL_SCANCODE_RSHIFT]) {
+		/*if (gKeysState[SDL_SCANCODE_LSHIFT] || gKeysState[SDL_SCANCODE_RSHIFT]) {
 			gInputPlaceObjectModifier |= PLACE_OBJECT_MODIFIER_SHIFT_Z;
 		}
 		if (gKeysState[SDL_SCANCODE_LCTRL] || gKeysState[SDL_SCANCODE_RCTRL]) {
@@ -1492,12 +1491,12 @@ void game_handle_keyboard_input()
 			gInputPlaceObjectModifier |= 8;
 		}
 #endif
-		game_handle_key_scroll();
+		game_handle_key_scroll();*/
 	}
 
 
 	// Handle key input
-	while (!gOpenRCT2Headless && (key = get_next_key()) != 0) {
+	/*while (!gOpenRCT2Headless && (key = get_next_key()) != 0) {
 		if (key == 255)
 			continue;
 
@@ -1529,7 +1528,7 @@ void game_handle_keyboard_input()
 				keyboard_shortcut_handle(key);
 			}
 		}
-	}
+	}*/
 }
 
 /**
@@ -1611,9 +1610,9 @@ void game_handle_edge_scroll()
 	if (mainWindow->viewport == NULL)
 		return;
 
-	uint32 window_flags = SDL_GetWindowFlags(gWindow);
-	if ((window_flags & SDL_WINDOW_INPUT_FOCUS) == 0)
-		return;
+	//uint32 window_flags = SDL_GetWindowFlags(gWindow);
+	//if ((window_flags & SDL_WINDOW_INPUT_FOCUS) == 0)
+	//	return;
 
 	scrollX = 0;
 	scrollY = 0;
@@ -1643,7 +1642,7 @@ void game_handle_edge_scroll()
 
 void game_handle_key_scroll()
 {
-	rct_window *mainWindow;
+	/*rct_window *mainWindow;
 	int scrollX, scrollY;
 
 	mainWindow = window_get_main();
@@ -1709,5 +1708,5 @@ void game_handle_key_scroll()
 	if (scrollY != 0) {
 		mainWindow->saved_view_y += scrollY * (12 << mainWindow->viewport->zoom);
 		gInputFlags |= INPUT_FLAG_VIEWPORT_SCROLLING;
-	}
+	}*/
 }

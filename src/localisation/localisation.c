@@ -16,12 +16,12 @@
 
 #include "../common.h"
 
-#ifdef __WINDOWS__
-#include <windows.h>
-#else
+//#ifdef __WINDOWS__
+//#include <windows.h>
+//#else
 #include <iconv.h>
 #include <errno.h>
-#endif // __WINDOWS__
+//#endif // __WINDOWS__
 
 #include "../config.h"
 #include "../game.h"
@@ -1223,7 +1223,7 @@ utf8 *win1252_to_utf8_alloc(const char *src, size_t srcMaxSize)
 
 int win1252_to_utf8(utf8string dst, const char *src, size_t srcLength, size_t maxBufferLength)
 {
-	/*#ifdef __WINDOWS__
+/*#ifdef __WINDOWS__
 	utf16 stackBuffer[256];
 	utf16 *heapBuffer = NULL;
 	utf16 *intermediateBuffer = stackBuffer;
@@ -1240,9 +1240,9 @@ int win1252_to_utf8(utf8string dst, const char *src, size_t srcLength, size_t ma
 	int result = WideCharToMultiByte(CP_UTF8, 0, intermediateBuffer, -1, dst, (int)maxBufferLength, NULL, NULL);
 
 	free(heapBuffer);
-#else
+#else*/
 	//log_warning("converting %s of size %d", src, srcLength);
-	char *buffer_conv = strndup(src, srcLength);
+/*	char *buffer_conv = strndup(src, srcLength);
 	char *buffer_orig = buffer_conv;
 	const char *to_charset = "UTF8";
 	const char *from_charset = "CP1252";
@@ -1288,11 +1288,12 @@ int win1252_to_utf8(utf8string dst, const char *src, size_t srcLength, size_t ma
 	}
 	size_t byte_diff = maxBufferLength - obl + 1;
 	dst[byte_diff - 1] = '\0';
-	//log_warning("converted %s of size %d, %d", dst, byte_diff, strlen(dst));
+	log_warning("converted %s of size %d, %d", dst, byte_diff, strlen(dst));
 	int result = byte_diff;
-	free(buffer_orig);
-#endif // __WINDOWS__
+	free(buffer_orig);*/
 
-	return result;*/
-	return 0;
+//#endif // __WINDOWS__
+	strcpy(dst, src);
+	dst[srcLength] = 0;
+	return srcLength + 1;//result;
 }

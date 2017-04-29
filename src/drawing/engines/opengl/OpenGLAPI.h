@@ -47,7 +47,6 @@
 
 #endif
 
-#include <SDL_opengl.h>
 
 #if OPENGL_NO_LINK
 

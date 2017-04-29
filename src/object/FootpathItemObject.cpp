@@ -35,6 +35,7 @@ void FootpathItemObject::ReadLegacy(IReadObjectContext * context, IStream * stre
     GetStringTable()->Read(context, stream, OBJ_STRING_ID_NAME);
 
     rct_object_entry sgEntry = stream->ReadValue<rct_object_entry>();
+	sgEntry.swapEndianness();
     SetPrimarySceneryGroup(&sgEntry);
 
     GetImageTable()->Read(context, stream);

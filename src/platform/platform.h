@@ -17,6 +17,11 @@
 #ifndef _PLATFORM_H_
 #define _PLATFORM_H_
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h> 
+
 #include "../common.h"
 
 #ifdef __WINDOWS__
@@ -25,8 +30,6 @@
 		#define HAVE_MATH_H
 	#endif
 #endif // __WINDOWS__
-
-#include <SDL.h>
 
 #include "../core/textinputbuffer.h"
 #include "../drawing/font.h"
@@ -130,7 +133,7 @@ extern int gTextInputCompositionLength;
 extern int gResolutionsAllowAnyAspectRatio;
 extern int gNumResolutions;
 extern resolution *gResolutions;
-extern SDL_Window *gWindow;
+//extern SDL_Window *gWindow;
 
 extern SDL_Color gPalette[256];
 
@@ -233,5 +236,15 @@ void core_init();
 	void platform_posix_sub_user_data_path(char *buffer, size_t size, const char *homedir);
 	void platform_posix_sub_resolve_openrct_data_path(utf8 *out, size_t size);
 #endif
+
+	int scandir(const char *dirname, struct dirent ***namelist, int (*select) __P((const struct dirent *)), int (*dcomp) __P((const void *, const void *)));
+	int alphasort(const void *d1, const void *d2);
+
+	char* strdup(const char *str);
+
+	int wii_access (const char *pathname, int mode);
+	#define access wii_access
+
+	void platform_print(const char* message);
 
 #endif

@@ -112,6 +112,48 @@ interface IStream
     void WriteString(const std::string &string);
 };
 
+template<>
+inline void IStream::Read<uint16>(uint16 * value)
+{
+    Read(value, 2);
+	*value = SDL_SwapLE16(*value);
+}
+	
+template<>
+inline void IStream::Read<sint16>(sint16 * value)
+{
+    Read(value, 2);
+	*value = SDL_SwapLE16(*value);
+}
+	
+template<>
+inline void IStream::Read<uint32>(uint32 * value)
+{
+    Read(value, 4);
+	*value = SDL_SwapLE32(*value);
+}
+	
+template<>
+inline void IStream::Read<sint32>(sint32 * value)
+{
+    Read(value, 4);
+	*value = SDL_SwapLE32(*value);
+}
+	
+template<>
+inline void IStream::Read<uint64>(uint64 * value)
+{
+    Read(value, 8);
+	*value = SDL_SwapLE64(*value);
+}
+	
+template<>
+inline void IStream::Read<sint64>(sint64 * value)
+{
+    Read(value, 8);
+	*value = SDL_SwapLE64(*value);
+}
+
 class IOException : public Exception
 {
 public:

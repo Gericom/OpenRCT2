@@ -19,10 +19,13 @@
 #include "../core/Memory.hpp"
 #include "ImageTable.h"
 #include "Object.h"
+#include "mem2heap.h"
 
 ImageTable::~ImageTable()
 {
-    Memory::Free(_data);
+	Console::WriteLine("~ImageTable");
+	mem2heap_free(_data);
+    //Memory::Free(_data);
     _data = nullptr;
     _dataSize = 0;
 }
@@ -43,7 +46,7 @@ void ImageTable::Read(IReadObjectContext * context, IStream * stream)
         }
 
         _dataSize = imageDataSize;
-        _data = Memory::Reallocate(_data, _dataSize);
+        _data = mem2heap_realloc(_data, _dataSize);//Memory::Reallocate(_data, _dataSize);
         if (_data == nullptr)
         {
             context->LogError(OBJECT_ERROR_BAD_IMAGE_TABLE, "Image table too large.");

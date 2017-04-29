@@ -15,7 +15,6 @@
 #pragma endregion
 
 #include "../common.h"
-#include <SDL.h>
 
 #include "../object.h"
 #include "../util/util.h"

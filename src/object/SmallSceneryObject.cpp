@@ -16,6 +16,7 @@
 
 #include "../core/IStream.hpp"
 #include "../core/Math.hpp"
+#include "../core/Console.hpp"
 #include "../core/Memory.hpp"
 #include "SmallSceneryObject.h"
 
@@ -47,6 +48,7 @@ void SmallSceneryObject::ReadLegacy(IReadObjectContext * context, IStream * stre
     GetStringTable()->Read(context, stream, OBJ_STRING_ID_NAME);
 
     rct_object_entry sgEntry = stream->ReadValue<rct_object_entry>();
+	sgEntry.swapEndianness();
     SetPrimarySceneryGroup(&sgEntry);
 
     if (_legacyType.small_scenery.flags & SMALL_SCENERY_FLAG16)

@@ -92,6 +92,19 @@ typedef struct rct_large_scenery_text {
 	uint16 var_A;			// 0xA
 	uint16 var_C;			// 0xC
 	rct_large_scenery_text_glyph glyphs[256]; // 0xE
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		offset[0].x = SDL_SwapLE16(offset[0].x);
+		offset[0].y = SDL_SwapLE16(offset[0].y);
+		offset[1].x = SDL_SwapLE16(offset[1].x);
+		offset[1].y = SDL_SwapLE16(offset[1].y);
+		max_width = SDL_SwapLE16(max_width);
+		var_A = SDL_SwapLE16(var_A);
+		var_C = SDL_SwapLE16(var_C);
+	}
+#endif
 } rct_large_scenery_text;
 assert_struct_size(rct_large_scenery_text, 14 + 4 * 256);
 

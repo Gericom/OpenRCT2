@@ -14,7 +14,11 @@
  *****************************************************************************/
 #pragma endregion
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__FreeBSD__) || defined(__NDS__)
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__FreeBSD__) || defined(__NDS__) || defined(__WII__)
+
+#include "../common.h"
+#include <fat.h>
+#include <unistd.h> 
 
 #include <dirent.h>
 #include <errno.h>
@@ -25,17 +29,19 @@
 #include <sys/time.h>
 #include <pwd.h>
 #include <time.h>
-#include <SDL_syswm.h>
 #include "../config.h"
 #include "../localisation/language.h"
 #include "../OpenRCT2.h"
 #include "../util/util.h"
 #include "platform.h"
+#include "../mem2heap.h"
 #include <dirent.h>
 #include <sys/time.h>
 #include <time.h>
 //#include <fts.h>
 #include <sys/file.h>
+#include <wiiuse/wpad.h>
+#include <ogc/machine/processor.h>
 
 // The name of the mutex used to prevent multiple instances of the game from running
 #define SINGLE_INSTANCE_MUTEX_NAME "openrct2.lock"
@@ -45,13 +51,247 @@
 utf8 _userDataDirectoryPath[MAX_PATH] = { 0 };
 utf8 _openrctDataDirectoryPath[MAX_PATH] = { 0 };
 
+static void *xfb = NULL;
+GXRModeObj *rmode = NULL;
+
+void _wrapup_reent(struct _reent * a)
+{
+
+}
+
+#define _SHIFTL(v, s, w)	\
+    ((u32) (((u32)(v) & ((0x01 << (w)) - 1)) << (s)))
+#define _SHIFTR(v, s, w)	\
+    ((u32)(((u32)(v) >> (s)) & ((0x01 << (w)) - 1)))
+
+static u32 vdacFlagRegion;
+static u32 i2cIdentFirst = 0;
+static u32 i2cIdentFlag = 1;
+static u32 oldTvStatus = 0x03e7;
+static u32 oldDtvStatus = 0x03e7;
+static vu32 *_i2cReg = (u32*)0xCD800000;
+
+static inline void __viOpenI2C(u32 channel)
+{
+	u32 val = ((_i2cReg[49]&~0x8000)|0x4000);
+	val |= _SHIFTL(channel,15,1);
+	_i2cReg[49] = val;
+}
+
+static inline u32 __viSetSCL(u32 channel)
+{
+	u32 val = (_i2cReg[48]&~0x4000);
+	val |= _SHIFTL(channel,14,1);
+	_i2cReg[48] = val;
+	return 1;
+}
+static inline u32 __viSetSDA(u32 channel)
+{
+	u32 val = (_i2cReg[48]&~0x8000);
+	val |= _SHIFTL(channel,15,1);
+	_i2cReg[48] = val;
+	return 1;
+}
+
+static inline u32 __viGetSDA()
+{
+	return _SHIFTR(_i2cReg[50],15,1);
+}
+
+static inline void __viCheckI2C()
+{
+	__viOpenI2C(0);
+	udelay(4);
+
+	i2cIdentFlag = 0;
+	if(__viGetSDA()!=0) i2cIdentFlag = 1;
+}
+
+static u32 __sendSlaveAddress(u8 addr)
+{
+	u32 i;
+
+	__viSetSDA(i2cIdentFlag^1);
+	udelay(2);
+
+	__viSetSCL(0);
+	for(i=0;i<8;i++) {
+		if(addr&0x80) __viSetSDA(i2cIdentFlag);
+		else __viSetSDA(i2cIdentFlag^1);
+		udelay(2);
+
+		__viSetSCL(1);
+		udelay(2);
+
+		__viSetSCL(0);
+		addr <<= 1;
+	}
+
+	__viOpenI2C(0);
+	udelay(2);
+
+	__viSetSCL(1);
+	udelay(2);
+
+	if(i2cIdentFlag==1 && __viGetSDA()!=0) return 0;
+
+	__viSetSDA(i2cIdentFlag^1);
+	__viOpenI2C(1);
+	__viSetSCL(0);
+
+	return 1;
+}
+
+static u32 __VISendI2CData(u8 addr,void *val,u32 len)
+{
+	u8 c;
+	s32 i,j;
+	u32 level,ret;
+
+	if(i2cIdentFirst==0) {
+		__viCheckI2C();
+		i2cIdentFirst = 1;
+	}
+
+	_CPU_ISR_Disable(level);
+
+	__viOpenI2C(1);
+	__viSetSCL(1);
+
+	__viSetSDA(i2cIdentFlag);
+	udelay(4);
+
+	ret = __sendSlaveAddress(addr);
+	if(ret==0) {
+		_CPU_ISR_Restore(level);
+		return 0;
+	}
+
+	__viOpenI2C(1);
+	for(i=0;i<len;i++) {
+		c = ((u8*)val)[i];
+		for(j=0;j<8;j++) {
+			if(c&0x80) __viSetSDA(i2cIdentFlag);
+			else __viSetSDA(i2cIdentFlag^1);
+			udelay(2);
+
+			__viSetSCL(1);
+			udelay(2);
+			__viSetSCL(0);
+
+			c <<= 1;
+		}
+		__viOpenI2C(0);
+		udelay(2);
+		__viSetSCL(1);
+		udelay(2);
+
+		if(i2cIdentFlag==1 && __viGetSDA()!=0) {
+			_CPU_ISR_Restore(level);
+			return 0;
+		}
+
+		__viSetSDA(i2cIdentFlag^1);
+		__viOpenI2C(1);
+		__viSetSCL(0);
+	}
+
+	__viOpenI2C(1);
+	__viSetSDA(i2cIdentFlag^1);
+	udelay(2);
+	__viSetSDA(i2cIdentFlag);
+
+	_CPU_ISR_Restore(level);
+	return 1;
+}
+
+static void __VIWriteI2CRegister8(u8 reg, u8 data)
+{
+	u8 buf[2];
+	buf[0] = reg;
+	buf[1] = data;
+	__VISendI2CData(0xe0,buf,2);
+	udelay(2);
+}
+
+GXRModeObj mPalVideoMode = 
+{
+    VI_TVMODE_PAL_INT,      // viDisplayMode
+    640,             // fbWidth
+    464,             // efbHeight
+    464,             // xfbHeight
+    (VI_MAX_WIDTH_PAL - 640)/2,         // viXOrigin
+    (VI_MAX_HEIGHT_PAL - 464)/2,        // viYOrigin
+    640,             // viWidth
+    464,             // viHeight
+    VI_XFBMODE_DF,   // xFBmode
+    GX_FALSE,        // field_rendering
+    GX_FALSE,        // aa
+
+    // sample points arranged in increasing Y order
+	{
+		{6,6},{6,6},{6,6},  // pix 0, 3 sample points, 1/12 units, 4 bits each
+		{6,6},{6,6},{6,6},  // pix 1
+		{6,6},{6,6},{6,6},  // pix 2
+		{6,6},{6,6},{6,6}   // pix 3
+	},
+    // vertical filter[7], 1/64 units, 6 bits each
+	{
+		 0,         // line n-1
+		 0,         // line n-1
+		21,         // line n
+		22,         // line n
+		21,         // line n
+		 0,         // line n+1
+		 0          // line n+1
+	}
+};
+
 /**
  * The function that is called directly from the host application (rct2.exe)'s WinMain.
  * This will be removed when OpenRCT2 can be built as a stand alone application.
  */
 int main(int argc, const char **argv)
 {
-	defaultExceptionHandler();
+	//defaultExceptionHandler();
+	VIDEO_Init();
+
+	// This function initialises the attached controllers
+	WPAD_Init();
+	WPAD_SetDataFormat(WPAD_CHAN_0, WPAD_FMT_BTNS_ACC_IR);
+	WPAD_SetIdleTimeout(120);
+	
+	// Obtain the preferred video mode from the system
+	// This will correspond to the settings in the Wii menu
+	rmode = &mPalVideoMode;//VIDEO_GetPreferredMode(NULL);
+
+	// Allocate memory for the display in the uncached region
+	xfb = MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+	memset(xfb, COLOR_BLACK, rmode->fbWidth * rmode->xfbHeight * 2);
+	
+	// Initialise the console, required for printf
+	//console_init(xfb,20,20,rmode->fbWidth,rmode->xfbHeight,rmode->fbWidth*VI_DISPLAY_PIX_SZ);
+	
+	// Set up the video registers with the chosen mode
+	VIDEO_Configure(rmode);
+
+	__VIWriteI2CRegister8(0x03, 0);
+	
+	// Tell the video hardware where our display memory is
+	VIDEO_SetNextFramebuffer(xfb);
+	
+	// Make the display visible
+	VIDEO_SetBlack(FALSE);
+
+	// Flush the video register changes to the hardware
+	VIDEO_Flush();
+
+	// Wait for Video setup to complete
+	VIDEO_WaitVSync();
+	if(rmode->viTVMode&VI_NON_INTERLACE) VIDEO_WaitVSync();
+
+	mem2heap_init();
+
 	fatInitDefault();
 	core_init();
 
@@ -117,6 +357,13 @@ void platform_get_time_local(rct2_time *out_time)
 
 static size_t platform_utf8_to_multibyte(const utf8 *path, char *buffer, size_t buffer_size)
 {
+	/*int len = strlen(path);
+	if (len > buffer_size - 1) {
+		//truncated = true;
+		len = buffer_size - 1;
+	}
+	strncpy(buffer, path, len);
+	buffer[len] = '\0';*/
 	wchar_t *wpath = utf8_to_widechar(path);
 	setlocale(LC_CTYPE, "");
 	size_t len = wcstombs(NULL, wpath, 0);
@@ -130,6 +377,13 @@ static size_t platform_utf8_to_multibyte(const utf8 *path, char *buffer, size_t 
 	if (truncated)
 		log_warning("truncated string %s", buffer);
 	free(wpath);
+	//int len = 0;
+	//while(*path != 0)
+	//{
+	//	*buffer++ = *path++;
+	//	len++;
+	//}
+	//*buffer = 0;
 	return len;
 }
 
@@ -158,6 +412,7 @@ bool platform_directory_exists(const utf8 *path)
 
 bool platform_original_game_data_exists(const utf8 *path)
 {
+	log_verbose("platform_original_game_data_exists(%s)", path);
 	char buffer[MAX_PATH];
 	platform_utf8_to_multibyte(path, buffer, MAX_PATH);
 	char checkPath[MAX_PATH];
@@ -188,11 +443,11 @@ bool platform_ensure_directory_exists(const utf8 *path)
 			*p = '\0';
 
 			log_verbose("mkdir(%s)", buffer);
-			if (mkdir(buffer, mask) != 0) {
+			/*if (mkdir(buffer, mask) != 0) {
 				if (errno != EEXIST) {
 					return false;
 				}
-			}
+			}*/
 
 			// Restore truncation
 			*p = '/';
@@ -200,11 +455,11 @@ bool platform_ensure_directory_exists(const utf8 *path)
 	}
 
 	log_verbose("mkdir(%s)", buffer);
-	if (mkdir(buffer, mask) != 0) {
+	/*if (mkdir(buffer, mask) != 0) {
 		if (errno != EEXIST) {
 			return false;
 		}
-	}
+	}*/
 
 	return true;
 }

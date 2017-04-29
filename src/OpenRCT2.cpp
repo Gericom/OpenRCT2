@@ -166,6 +166,7 @@ extern "C"
                 return false;
             }
         }
+		Console::WriteLine("language_open done");
 
         // TODO Ideally we want to delay this until we show the title so that we can
         //      still open the game window and draw a progress screen for the creation
@@ -342,11 +343,11 @@ namespace OpenRCT2
         platform_resolve_openrct_data_path();
         platform_resolve_user_data_path();
         platform_get_user_directory(userPath, NULL, sizeof(userPath));
-        if (!platform_ensure_directory_exists(userPath))
-        {
+       // if (!platform_ensure_directory_exists(userPath))
+        //{
             //Console::Error::WriteLine("Could not create user directory (do you have write access to your documents folder?)");
             //return nullptr;
-        }
+       // }
         openrct2_set_exe_path();
 
         config_set_defaults();
@@ -433,13 +434,13 @@ namespace OpenRCT2
     static bool IsMinimised()
     {
         // Don't check if window is minimised too frequently (every second is fine)
-        if (_lastTick > _isWindowMinimisedLastCheckTick + 1000)
+        /*if (_lastTick > _isWindowMinimisedLastCheckTick + 1000)
         {
             uint32 windowFlags = SDL_GetWindowFlags(gWindow);
             _isWindowMinimised = (windowFlags & SDL_WINDOW_MINIMIZED) ||
                                  (windowFlags & SDL_WINDOW_HIDDEN);
-        }
-        return _isWindowMinimised;
+        }*/
+        return 0;//_isWindowMinimised;
     }
 
     static bool ShouldRunVariableFrame()

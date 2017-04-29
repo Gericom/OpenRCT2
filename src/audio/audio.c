@@ -116,7 +116,7 @@ void audio_stop_channel(void **channel);
 
 void audio_init()
 {
-	int result = SDL_Init(SDL_INIT_AUDIO);
+	/*int result = SDL_Init(SDL_INIT_AUDIO);
 	if (result < 0) {
 		log_error("SDL_Init %s", SDL_GetError());
 		return;
@@ -132,17 +132,17 @@ void audio_init()
 				gAudioCurrentDevice = i;
 			}
 		}
-	}
+	}*/
 }
 
 void audio_quit()
 {
-	SDL_QuitSubSystem(SDL_INIT_AUDIO);
+	//SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
 void audio_populate_devices()
 {
-	if (gAudioDevices != NULL)
+	/*if (gAudioDevices != NULL)
 		free(gAudioDevices);
 
 	gAudioDeviceCount = SDL_GetNumAudioDevices(SDL_FALSE);
@@ -167,7 +167,7 @@ void audio_populate_devices()
 	memcpy(gAudioDevices, systemAudioDevices, gAudioDeviceCount * sizeof(audio_device));
 #endif // __LINUX__
 
-	free(systemAudioDevices);
+	free(systemAudioDevices);*/
 }
 
 int audio_play_sound_panned(int soundId, int pan, sint16 x, sint16 y, sint16 z)

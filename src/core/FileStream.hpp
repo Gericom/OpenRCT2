@@ -18,7 +18,6 @@
 
 #include "../common.h"
 
-#include <SDL.h>
 #include "IStream.hpp"
 
 enum

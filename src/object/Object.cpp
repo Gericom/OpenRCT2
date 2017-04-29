@@ -14,6 +14,7 @@
  *****************************************************************************/
 #pragma endregion
 
+#include "../core/Console.hpp"
 #include "../core/Memory.hpp"
 #include "../core/String.hpp"
 #include "Object.h"
@@ -34,6 +35,7 @@ Object::Object(const rct_object_entry &entry)
 
 Object::~Object()
 {
+	Console::WriteLine("~Object");
     Memory::Free(_identifier);
 }
 

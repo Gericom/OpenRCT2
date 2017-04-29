@@ -316,7 +316,7 @@ static void window_ride_list_mousedown(int widgetIndex, rct_window*w, rct_widget
 			}
 
 			gDropdownItemsFormat[numItems] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[numItems] = ride_info_type_string_mapping[type];
+			*((uint16*)&gDropdownItemsArgs[numItems]) = ride_info_type_string_mapping[type];
 			numItems++;
 		}
 
@@ -351,7 +351,7 @@ static void window_ride_list_dropdown(rct_window *w, int widgetIndex, int dropdo
 			return;
 
 		int informationType = INFORMATION_TYPE_STATUS;
-		uint32 arg = (uint32)gDropdownItemsArgs[dropdownIndex];
+		uint32 arg = (uint32)*((uint16*)&gDropdownItemsArgs[dropdownIndex]);
 		for (int i = 0; i < countof(ride_info_type_string_mapping); i++) {
 			if (arg == ride_info_type_string_mapping[i]) {
 				informationType = i;

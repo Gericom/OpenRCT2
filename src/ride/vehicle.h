@@ -25,6 +25,10 @@
 typedef struct rct_vehicle_colour {
 	uint8 body_colour;
 	uint8 trim_colour;
+
+#ifdef __cplusplus
+	void swapEndianness() {}
+#endif
 } rct_vehicle_colour;
 assert_struct_size(rct_vehicle_colour, 2);
 
@@ -81,6 +85,40 @@ typedef struct rct_ride_entry_vehicle {
 #ifdef PLATFORM_32BIT
 assert_struct_size(rct_ride_entry_vehicle, 0x65);
 #endif
+
+enum {
+	VEHICLE_STATUS_MOVING_TO_END_OF_STATION,
+	VEHICLE_STATUS_WAITING_FOR_PASSENGERS,
+	VEHICLE_STATUS_WAITING_TO_DEPART,
+	VEHICLE_STATUS_DEPARTING,
+	VEHICLE_STATUS_TRAVELLING,
+	VEHICLE_STATUS_ARRIVING,
+	VEHICLE_STATUS_UNLOADING_PASSENGERS,
+	VEHICLE_STATUS_TRAVELLING_BOAT,
+	VEHICLE_STATUS_CRASHING,
+	VEHICLE_STATUS_CRASHED,
+	VEHICLE_STATUS_TRAVELLING_BUMPER_CARS,
+	VEHICLE_STATUS_SWINGING,
+	VEHICLE_STATUS_ROTATING,
+	VEHICLE_STATUS_FERRIS_WHEEL_ROTATING,
+	VEHICLE_STATUS_SIMULATOR_OPERATING,
+	VEHICLE_STATUS_SHOWING_FILM,
+	VEHICLE_STATUS_SPACE_RINGS_OPERATING,
+	VEHICLE_STATUS_TOP_SPIN_OPERATING,
+	VEHICLE_STATUS_HAUNTED_HOUSE_OPERATING,
+	VEHICLE_STATUS_DOING_CIRCUS_SHOW,
+	VEHICLE_STATUS_CROOKED_HOUSE_OPERATING,
+	VEHICLE_STATUS_WAITING_FOR_CABLE_LIFT,
+	VEHICLE_STATUS_TRAVELLING_CABLE_LIFT,
+	VEHICLE_STATUS_STOPPING,
+	VEHICLE_STATUS_WAITING_FOR_PASSENGERS_17,
+	VEHICLE_STATUS_WAITING_TO_START,
+	VEHICLE_STATUS_STARTING,
+	VEHICLE_STATUS_OPERATING_1A,
+	VEHICLE_STATUS_STOPPING_1B,
+	VEHICLE_STATUS_UNLOADING_PASSENGERS_1C,
+	VEHICLE_STATUS_STOPPED_BY_BLOCK_BRAKES
+};
 
 typedef struct rct_vehicle {
 	uint8 sprite_identifier;		// 0x00
@@ -198,6 +236,52 @@ typedef struct rct_vehicle {
 	uint8 colours_extended;			// 0xD7
 	uint8 seat_rotation;			// 0xD8
 	uint8 target_seat_rotation;		// 0xD9
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		sprite_left = SDL_SwapLE16(sprite_left);
+		sprite_top = SDL_SwapLE16(sprite_top);
+		sprite_right = SDL_SwapLE16(sprite_right);
+		sprite_bottom = SDL_SwapLE16(sprite_bottom);
+		remaining_distance = SDL_SwapLE32(remaining_distance);
+		velocity = SDL_SwapLE32(velocity);
+		acceleration = SDL_SwapLE32(acceleration);
+		colours.swapEndianness();
+		if(status != VEHICLE_STATUS_TRAVELLING_BOAT && status != VEHICLE_STATUS_TRAVELLING_BUMPER_CARS)
+			track_progress = SDL_SwapLE16(track_progress);
+		if(status != VEHICLE_STATUS_TRAVELLING_BOAT)
+			track_direction = SDL_SwapLE16(track_direction);
+		track_x = SDL_SwapLE16(track_x);
+		track_y = SDL_SwapLE16(track_y);
+		track_z = SDL_SwapLE16(track_z);
+		next_vehicle_on_train = SDL_SwapLE16(next_vehicle_on_train);
+		prev_vehicle_on_ride = SDL_SwapLE16(prev_vehicle_on_ride);
+		next_vehicle_on_ride = SDL_SwapLE16(next_vehicle_on_ride);
+		var_44 = SDL_SwapLE16(var_44);
+		friction = SDL_SwapLE16(friction);
+		update_flags = SDL_SwapLE16(update_flags);
+		if(status != VEHICLE_STATUS_FERRIS_WHEEL_ROTATING)
+			swinging_car_var_0 = SDL_SwapLE16(swinging_car_var_0);
+		var_4E = SDL_SwapLE16(var_4E);
+		for(int i = 0; i < (32); i++)
+			peep[i] = SDL_SwapLE16(peep[i]);
+		var_B6 = SDL_SwapLE16(var_B6);
+		var_B8 = SDL_SwapLE16(var_B8);
+		var_C0 = SDL_SwapLE16(var_C0);
+		var_C8 = SDL_SwapLE16(var_C8);
+		var_CA = SDL_SwapLE16(var_CA);
+		lost_time_out = SDL_SwapLE16(lost_time_out);
+	}
+#endif
 } rct_vehicle;
 assert_struct_size(rct_vehicle, 0xDA);
 #pragma pack(pop)
@@ -253,40 +337,6 @@ enum {
 	VEHICLE_ENTRY_FLAG_B_13 = 1 << 13,
 	VEHICLE_ENTRY_FLAG_B_14 = 1 << 14,
 	VEHICLE_ENTRY_FLAG_B_15 = 1 << 15,
-};
-
-enum {
-	VEHICLE_STATUS_MOVING_TO_END_OF_STATION,
-	VEHICLE_STATUS_WAITING_FOR_PASSENGERS,
-	VEHICLE_STATUS_WAITING_TO_DEPART,
-	VEHICLE_STATUS_DEPARTING,
-	VEHICLE_STATUS_TRAVELLING,
-	VEHICLE_STATUS_ARRIVING,
-	VEHICLE_STATUS_UNLOADING_PASSENGERS,
-	VEHICLE_STATUS_TRAVELLING_BOAT,
-	VEHICLE_STATUS_CRASHING,
-	VEHICLE_STATUS_CRASHED,
-	VEHICLE_STATUS_TRAVELLING_BUMPER_CARS,
-	VEHICLE_STATUS_SWINGING,
-	VEHICLE_STATUS_ROTATING,
-	VEHICLE_STATUS_FERRIS_WHEEL_ROTATING,
-	VEHICLE_STATUS_SIMULATOR_OPERATING,
-	VEHICLE_STATUS_SHOWING_FILM,
-	VEHICLE_STATUS_SPACE_RINGS_OPERATING,
-	VEHICLE_STATUS_TOP_SPIN_OPERATING,
-	VEHICLE_STATUS_HAUNTED_HOUSE_OPERATING,
-	VEHICLE_STATUS_DOING_CIRCUS_SHOW,
-	VEHICLE_STATUS_CROOKED_HOUSE_OPERATING,
-	VEHICLE_STATUS_WAITING_FOR_CABLE_LIFT,
-	VEHICLE_STATUS_TRAVELLING_CABLE_LIFT,
-	VEHICLE_STATUS_STOPPING,
-	VEHICLE_STATUS_WAITING_FOR_PASSENGERS_17,
-	VEHICLE_STATUS_WAITING_TO_START,
-	VEHICLE_STATUS_STARTING,
-	VEHICLE_STATUS_OPERATING_1A,
-	VEHICLE_STATUS_STOPPING_1B,
-	VEHICLE_STATUS_UNLOADING_PASSENGERS_1C,
-	VEHICLE_STATUS_STOPPED_BY_BLOCK_BRAKES
 };
 
 enum{

@@ -19,10 +19,12 @@
 
 extern "C"
 {
+    #include "../platform/platform.h"
     #include "../common.h"
     #include "localisation.h"
 }
 
+#include "../core/Console.hpp"
 #include "../core/FileStream.hpp"
 #include "../core/Math.hpp"
 #include "../core/Memory.hpp"
@@ -82,6 +84,7 @@ private:
 public:
     static LanguagePack * FromFile(uint16 id, const utf8 * path)
     {
+		Console::WriteLine("FromFile");
         Guard::ArgumentNotNull(path);
 
         // Load file directly into memory
@@ -91,6 +94,7 @@ public:
             FileStream fs = FileStream(path, FILE_MODE_OPEN);
 
             size_t fileLength = (size_t)fs.GetLength();
+			Console::WriteLine("fileLength: %d", fileLength);
             if (fileLength > MAX_LANGUAGE_SIZE)
             {
                 throw IOException("Language file too large.");

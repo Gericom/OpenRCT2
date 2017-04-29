@@ -51,7 +51,7 @@
 #ifdef __FREEBSD__
 	#define OPENRCT2_PLATFORM		"FreeBSD"
 #endif
-#define OPENRCT2_PLATFORM		"NDS"
+#define OPENRCT2_PLATFORM		"Wii"
 #ifndef OPENRCT2_PLATFORM
 	#error Unknown platform!
 #endif

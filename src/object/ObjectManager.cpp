@@ -121,6 +121,7 @@ public:
 
     bool LoadObjects(const rct_object_entry * entries, size_t count) override
     {
+		UnloadAll();
         // Find all the required objects
         size_t numRequiredObjects;
         auto requiredObjects = new const ObjectRepositoryItem *[OBJECT_ENTRY_COUNT];

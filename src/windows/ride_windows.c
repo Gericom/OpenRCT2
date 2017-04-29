@@ -2074,14 +2074,14 @@ static void window_ride_show_view_dropdown(rct_window *w, rct_widget *widget)
 
 	// First item
 	gDropdownItemsFormat[0] = STR_DROPDOWN_MENU_LABEL;
-	gDropdownItemsArgs[0] = STR_OVERALL_VIEW;
+	*((uint16*)&gDropdownItemsArgs[0]) = STR_OVERALL_VIEW;
 	int currentItem = 1;
 
 	// Vehicles
 	int name = RideComponentNames[RideNameConvention[ride->type].vehicle].number;
 	for (int i = 1; i <= ride->num_vehicles; i++) {
 		gDropdownItemsFormat[currentItem] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[currentItem] = name | (currentItem << 16);
+		*((uint16*)&gDropdownItemsArgs[currentItem]) = name | (currentItem << 16);
 		currentItem++;
 	}
 
@@ -2089,7 +2089,7 @@ static void window_ride_show_view_dropdown(rct_window *w, rct_widget *widget)
 	name = RideComponentNames[RideNameConvention[ride->type].station].number;
 	for (int i = 1; i <= ride->num_stations; i++) {
 		gDropdownItemsFormat[currentItem] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[currentItem] = name | (i << 16);
+		*((uint16*)&gDropdownItemsArgs[currentItem]) = name | (i << 16);
 		currentItem++;
 	}
 
@@ -2119,17 +2119,17 @@ static void window_ride_show_open_dropdown(rct_window *w, rct_widget *widget)
 
 	numItems = 0;
 	gDropdownItemsFormat[numItems] = STR_DROPDOWN_MENU_LABEL;
-	gDropdownItemsArgs[numItems] = STR_CLOSE_RIDE;
+	*((uint16*)&gDropdownItemsArgs[numItems]) = STR_CLOSE_RIDE;
 	numItems++;
 
 	if (!ride_type_has_flag(ride->type, RIDE_TYPE_FLAG_NO_TEST_MODE)) {
 		gDropdownItemsFormat[numItems] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[numItems] = STR_TEST_RIDE;
+		*((uint16*)&gDropdownItemsArgs[numItems]) = STR_TEST_RIDE;
 		numItems++;
 	}
 
 	gDropdownItemsFormat[numItems] = STR_DROPDOWN_MENU_LABEL;
-	gDropdownItemsArgs[numItems] = STR_OPEN_RIDE;
+	*((uint16*)&gDropdownItemsArgs[numItems]) = STR_OPEN_RIDE;
 	numItems++;
 
 	window_dropdown_show_text(
@@ -2740,7 +2740,7 @@ static void window_ride_vehicle_mousedown(int widgetIndex, rct_window *w, rct_wi
 					selectedIndex = numItems;
 
 				gDropdownItemsFormat[numItems] = STR_DROPDOWN_MENU_LABEL;
-				gDropdownItemsArgs[numItems] = (rideEntryIndex << 16) | currentRideEntry->name;
+				*((uint32*)&gDropdownItemsArgs[numItems]) = rideEntryIndex | (currentRideEntry->name << 16);
 
 				numItems++;
 			}
@@ -2788,7 +2788,7 @@ static void window_ride_vehicle_dropdown(rct_window *w, int widgetIndex, int dro
 
 	switch (widgetIndex) {
 	case WIDX_VEHICLE_TYPE_DROPDOWN:
-		dropdownIndex = (gDropdownItemsArgs[dropdownIndex] >> 16) & 0xFFFF;
+		dropdownIndex = gDropdownItemsArgs[dropdownIndex] & 0xFFFF;
 		ride_set_ride_entry(w->number, dropdownIndex);
 		break;
 	}
@@ -3169,7 +3169,7 @@ static void window_ride_mode_dropdown(rct_window *w, rct_widget *widget)
 	// Create dropdown list
 	for (i = 0; i < numAvailableModes; i++) {
 		gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[i] = RideModeNames[availableModes[i]];
+		*((uint16*)&gDropdownItemsArgs[i]) = RideModeNames[availableModes[i]];
 	}
 	window_dropdown_show_text_custom_width(
 		w->x + dropdownWidget->left,
@@ -3203,7 +3203,7 @@ static void window_ride_load_dropdown(rct_window *w, rct_widget *widget)
 
 	for (i = 0; i < 5; i++) {
 		gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[i] = VehicleLoadNames[i];
+		*((uint16*)&gDropdownItemsArgs[i]) = VehicleLoadNames[i];
 	}
 	window_dropdown_show_text_custom_width(
 		w->x + dropdownWidget->left,
@@ -3731,7 +3731,7 @@ static void window_ride_maintenance_mousedown(int widgetIndex, rct_window *w, rc
 		dropdownWidget--;
 		for (int i = 0; i < 7; i++) {
 			gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[i] = RideInspectionIntervalNames[i];
+			*((uint16*)&gDropdownItemsArgs[i]) = RideInspectionIntervalNames[i];
 		}
 		window_dropdown_show_text_custom_width(
 			w->x + dropdownWidget->left,
@@ -3753,7 +3753,7 @@ static void window_ride_maintenance_mousedown(int widgetIndex, rct_window *w, rc
 				break;
 		}
 		gDropdownItemsFormat[0] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[0] = STR_DEBUG_FIX_RIDE;
+		*((uint16*)&gDropdownItemsArgs[0]) = STR_DEBUG_FIX_RIDE;
 		for (int i = 0; i < 8; i++) {
 			if (RideAvailableBreakdowns[ride_type->ride_type[j]] & (uint8)(1 << i)) {
 				if (i == BREAKDOWN_BRAKES_FAILURE && (ride->mode == RIDE_MODE_CONTINUOUS_CIRCUIT_BLOCK_SECTIONED || ride->mode == RIDE_MODE_POWERED_LAUNCH_BLOCK_SECTIONED)) {
@@ -3761,7 +3761,7 @@ static void window_ride_maintenance_mousedown(int widgetIndex, rct_window *w, rc
 						continue;
 				}
 				gDropdownItemsFormat[num_items] = STR_DROPDOWN_MENU_LABEL;
-				gDropdownItemsArgs[num_items] = RideBreakdownReasonNames[i];
+				*((uint16*)&gDropdownItemsArgs[num_items]) = RideBreakdownReasonNames[i];
 				num_items++;
 			}
 		}
@@ -3792,7 +3792,7 @@ static void window_ride_maintenance_mousedown(int widgetIndex, rct_window *w, rc
 							break;
 						}
 						gDropdownItemsFormat[num_items] = STR_DROPDOWN_MENU_LABEL;
-						gDropdownItemsArgs[num_items] = RideBreakdownReasonNames[i];
+						*((uint16*)&gDropdownItemsArgs[num_items]) = RideBreakdownReasonNames[i];
 						num_items++;
 					}
 				}
@@ -4184,7 +4184,7 @@ static void window_ride_colour_mousedown(int widgetIndex, rct_window *w, rct_wid
 	case WIDX_TRACK_COLOUR_SCHEME_DROPDOWN:
 		for (i = 0; i < 4; i++) {
 			gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[i] = ColourSchemeNames[i];
+			*((uint16*)&gDropdownItemsArgs[i]) = ColourSchemeNames[i];
 		}
 
 		window_dropdown_show_text_custom_width(
@@ -4211,7 +4211,7 @@ static void window_ride_colour_mousedown(int widgetIndex, rct_window *w, rct_wid
 	case WIDX_MAZE_STYLE_DROPDOWN:
 		for (i = 0; i < 4; i++) {
 			gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[i] = MazeOptions[i].text;
+			*((uint16*)&gDropdownItemsArgs[i]) = MazeOptions[i].text;
 		}
 
 		window_dropdown_show_text_custom_width(
@@ -4230,7 +4230,7 @@ static void window_ride_colour_mousedown(int widgetIndex, rct_window *w, rct_wid
 		gDropdownItemsChecked = 0;
 		for (i = 0; i < countof(window_ride_entrance_style_list); i++) {
 			gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[i] = RideEntranceDefinitions[window_ride_entrance_style_list[i]].string_id;
+			*((uint16*)&gDropdownItemsArgs[i]) = RideEntranceDefinitions[window_ride_entrance_style_list[i]].string_id;
 
 			if (ride->entrance_style == window_ride_entrance_style_list[i]) {
 				dropdown_set_checked(i, true);
@@ -4253,7 +4253,7 @@ static void window_ride_colour_mousedown(int widgetIndex, rct_window *w, rct_wid
 	case WIDX_VEHICLE_COLOUR_SCHEME_DROPDOWN:
 		for (i = 0; i < 3; i++) {
 			gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[i] = (RideComponentNames[RideNameConvention[ride->type].vehicle].singular << 16) | VehicleColourSchemeNames[i];
+			*((uint16*)&gDropdownItemsArgs[i]) = (RideComponentNames[RideNameConvention[ride->type].vehicle].singular << 16) | VehicleColourSchemeNames[i];
 		}
 
 		window_dropdown_show_text_custom_width(
@@ -4276,7 +4276,7 @@ static void window_ride_colour_mousedown(int widgetIndex, rct_window *w, rct_wid
 		stringId = (ride->colour_scheme_type & 3) == VEHICLE_COLOUR_SCHEME_PER_TRAIN ? STR_RIDE_COLOUR_TRAIN_OPTION : STR_RIDE_COLOUR_VEHICLE_OPTION;
 		for (i = 0; i < 32; i++) {
 			gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[i] = ((sint64)(i + 1) << 32) | ((RideComponentNames[RideNameConvention[ride->type].vehicle].capitalised) << 16) | stringId;
+			gDropdownItemsArgs[i] = ((sint64)(i + 1) << 16) | ((sint64)(RideComponentNames[RideNameConvention[ride->type].vehicle].capitalised) << 32) | ((sint64)stringId << 48);
 		}
 
 		window_dropdown_show_text_custom_width(
@@ -4822,7 +4822,7 @@ static void window_ride_music_mousedown(int widgetIndex, rct_window *w, rct_widg
 
 	for (i = 0; i < numItems; i++) {
 		gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[i] = MusicStyleNames[window_ride_current_music_style_order[i]];
+		*((uint16*)&gDropdownItemsArgs[i]) = MusicStyleNames[window_ride_current_music_style_order[i]];
 	}
 
 	window_dropdown_show_text_custom_width(

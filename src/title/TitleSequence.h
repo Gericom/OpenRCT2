@@ -18,7 +18,7 @@
 
 #include "../common.h"
 
-struct SDL_RWops;
+//struct SDL_RWops;
 
 typedef struct TitleCommand
 {
@@ -55,7 +55,7 @@ typedef struct TitleSequenceParkHandle
 {
     size_t DataSize;
     void * Data;
-    struct SDL_RWops * RWOps;
+    SDL_RWops * RWOps;
     bool IsScenario;
 } TitleSequenceParkHandle;
 

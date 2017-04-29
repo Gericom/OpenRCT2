@@ -120,7 +120,7 @@ void keyboard_shortcut_format_string(char *buffer, size_t size, uint16 shortcutK
 		format_string(formatBuffer, 256, STR_CMD_PLUS, NULL);
 		safe_strcat(buffer, formatBuffer, size);
 	}
-	safe_strcat(buffer, SDL_GetScancodeName(shortcutKey & 0xFF), size);
+	//safe_strcat(buffer, SDL_GetScancodeName(shortcutKey & 0xFF), size);
 }
 
 #pragma region Shortcut Commands

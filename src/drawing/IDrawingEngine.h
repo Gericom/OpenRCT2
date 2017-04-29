@@ -18,7 +18,6 @@
 
 #include "../common.h"
 
-#include <SDL_video.h>
 
 struct rct_drawpixelinfo;
 interface IDrawingContext;
@@ -37,7 +36,7 @@ interface IDrawingEngine
 {
     virtual ~IDrawingEngine() { }
 
-    virtual void Initialise(SDL_Window * window)     abstract;
+    virtual void Initialise()/*SDL_Window * window)*/     abstract;
     virtual void Resize(uint32 width, uint32 height) abstract;
     virtual void SetPalette(SDL_Color * colours)     abstract;
 

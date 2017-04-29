@@ -71,7 +71,11 @@ typedef struct rct_widget {
 	sint16 bottom;					// 0x08
 	union {							// 0x0A
 		uint32 image;
-		rct_string_id text;
+		struct
+		{
+			short : 16;
+			rct_string_id text;
+		};
 		uint32 content;
 		utf8 * string;
 	};

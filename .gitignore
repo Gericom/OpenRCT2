@@ -2,6 +2,7 @@
 
 *.elf
 *.nds
+*.dol
 
 sdl
 
@@ -304,3 +305,5 @@ data/g2.dat
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+tmp/*

@@ -89,9 +89,11 @@ static utf8 * GetLanguagePath(utf8 * buffer, size_t bufferSize, uint32 languageI
 
 bool language_open(int id)
 {
+	Console::WriteLine("language_open");
     char filename[MAX_PATH];
 
     language_close_all();
+	Console::WriteLine("language_close_all done");
     if (id == LANGUAGE_UNDEFINED)
     {
         return false;
@@ -99,12 +101,16 @@ bool language_open(int id)
 
     if (id != LANGUAGE_ENGLISH_UK)
     {
+		Console::WriteLine("id != LANGUAGE_ENGLISH_UK");
         GetLanguagePath(filename, sizeof(filename), LANGUAGE_ENGLISH_UK);
         _languageFallback = LanguagePackFactory::FromFile(LANGUAGE_ENGLISH_UK, filename);
+		Console::WriteLine("LanguagePackFactory::FromFile done");
     }
 
     GetLanguagePath(filename, sizeof(filename), id);
+	Console::WriteLine("GetLanguagePath done %s", filename);
     _languageCurrent = LanguagePackFactory::FromFile(id, filename);
+	Console::WriteLine("_languageCurrent = LanguagePackFactory::FromFile");
     if (_languageCurrent != nullptr)
     {
         gCurrentLanguage = id;

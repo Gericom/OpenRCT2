@@ -52,7 +52,7 @@ static void FASTCALL DrawRLESprite2(const uint8* RESTRICT source_bits_pointer,
 
         //The first part of the source pointer is a list of offsets to different lines
         //This will move the pointer to the correct source line.
-        const uint8 *next_source_pointer = source_bits_pointer + ((uint16*)source_bits_pointer)[y];
+        const uint8 *next_source_pointer = source_bits_pointer + SDL_SwapLE16(((uint16*)source_bits_pointer)[y]);
         uint8* loop_dest_pointer = next_dest_pointer + line_width * i2;
 
         uint8 last_data_line = 0;

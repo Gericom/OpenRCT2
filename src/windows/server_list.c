@@ -48,7 +48,7 @@ typedef struct server_entry {
 static char _playerName[32 + 1];
 static server_entry *_serverEntries = NULL;
 static int _numServerEntries = 0;
-static SDL_mutex *_mutex = 0;
+//static SDL_mutex *_mutex = 0;
 static uint32 _numPlayersOnline = 0;
 
 enum {
@@ -153,9 +153,9 @@ void window_server_list_open()
 	if (window != NULL)
 		return;
 
-	if (_mutex == 0) {
-		_mutex = SDL_CreateMutex();
-	}
+	//if (_mutex == 0) {
+		//_mutex = SDL_CreateMutex();
+	//}
 
 	window = window_create_centred(WWIDTH_MIN, WHEIGHT_MIN, &window_server_list_events, WC_SERVER_LIST, WF_10 | WF_RESIZABLE);
 
@@ -196,11 +196,11 @@ void window_server_list_open()
 static void window_server_list_close(rct_window *w)
 {
 	dispose_server_entry_list();
-	if (_mutex) {
-		SDL_LockMutex(_mutex);
-		SDL_DestroyMutex(_mutex);
-		_mutex = 0;
-	}
+	//if (_mutex) {
+		//SDL_LockMutex(_mutex);
+		//SDL_DestroyMutex(_mutex);
+		//_mutex = 0;
+	//}
 }
 
 static void window_server_list_mouseup(rct_window *w, int widgetIndex)
@@ -540,7 +540,7 @@ static void server_list_load_server_entries()
 		return;
 	}
 
-	SDL_LockMutex(_mutex);
+	//SDL_LockMutex(_mutex);
 	dispose_server_entry_list();
 
 	// Read number of server entries
@@ -563,7 +563,7 @@ static void server_list_load_server_entries()
 	SDL_RWclose(file);
 
 	sort_servers();
-	SDL_UnlockMutex(_mutex);
+	//SDL_UnlockMutex(_mutex);
 }
 
 static void server_list_save_server_entries()
@@ -580,7 +580,7 @@ static void server_list_save_server_entries()
 		return;
 	}
 
-	SDL_LockMutex(_mutex);
+	//SDL_LockMutex(_mutex);
 	int count = 0;
 	for (int i = 0; i < _numServerEntries; i++) {
 		server_entry *serverInfo = &_serverEntries[i];
@@ -602,12 +602,12 @@ static void server_list_save_server_entries()
 	}
 
 	SDL_RWclose(file);
-	SDL_UnlockMutex(_mutex);
+	//SDL_UnlockMutex(_mutex);
 }
 
 static void dispose_server_entry_list()
 {
-	SDL_LockMutex(_mutex);
+	//SDL_LockMutex(_mutex);
 	if (_serverEntries != NULL) {
 		for (int i = 0; i < _numServerEntries; i++) {
 			dispose_server_entry(&_serverEntries[i]);
@@ -616,7 +616,7 @@ static void dispose_server_entry_list()
 		_serverEntries = NULL;
 	}
 	_numServerEntries = 0;
-	SDL_UnlockMutex(_mutex);
+	//SDL_UnlockMutex(_mutex);
 }
 
 static void dispose_server_entry(server_entry *serverInfo)
@@ -629,10 +629,10 @@ static void dispose_server_entry(server_entry *serverInfo)
 
 static server_entry* add_server_entry(char *address)
 {
-	SDL_LockMutex(_mutex);
+	//SDL_LockMutex(_mutex);
 	for (int i = 0; i < _numServerEntries; i++) {
 		if (strcmp(_serverEntries[i].address, address) == 0) {
-			SDL_UnlockMutex(_mutex);
+			//SDL_UnlockMutex(_mutex);
 			return &_serverEntries[i];
 		}
 	}
@@ -654,13 +654,13 @@ static server_entry* add_server_entry(char *address)
 	newserver->favourite = false;
 	newserver->players = 0;
 	newserver->maxplayers = 0;
-	SDL_UnlockMutex(_mutex);
+	//SDL_UnlockMutex(_mutex);
 	return newserver;
 }
 
 static void remove_server_entry(int index)
 {
-	SDL_LockMutex(_mutex);
+	//SDL_LockMutex(_mutex);
 	if (_numServerEntries > index) {
 		int serversToMove = _numServerEntries - index - 1;
 		memmove(&_serverEntries[index], &_serverEntries[index + 1], serversToMove * sizeof(server_entry));
@@ -668,7 +668,7 @@ static void remove_server_entry(int index)
 		_numServerEntries--;
 		_serverEntries = realloc(_serverEntries, _numServerEntries * sizeof(server_entry));
 	}
-	SDL_UnlockMutex(_mutex);
+	//SDL_UnlockMutex(_mutex);
 }
 
 static int server_compare(const void *a, const void *b)
@@ -765,7 +765,7 @@ static void fetch_servers()
 		masterServerUrl = gConfigNetwork.master_server_url;
 	}
 
-	SDL_LockMutex(_mutex);
+	//SDL_LockMutex(_mutex);
 	for (int i = 0; i < _numServerEntries; i++) {
 		if (!_serverEntries[i].favourite) {
 			remove_server_entry(i);
@@ -773,7 +773,7 @@ static void fetch_servers()
 		}
 	}
 	sort_servers();
-	SDL_UnlockMutex(_mutex);
+	//SDL_UnlockMutex(_mutex);
 
 	http_request_t request;
 	request.url = masterServerUrl;
@@ -840,7 +840,7 @@ static void fetch_servers_callback(http_response_t* response)
 		char address[256];
 		snprintf(address, sizeof(address), "%s:%d", json_string_value(addressIp), (int)json_integer_value(port));
 
-		SDL_LockMutex(_mutex);
+		//SDL_LockMutex(_mutex);
 		server_entry* newserver = add_server_entry(address);
 		SafeFree(newserver->name);
 		SafeFree(newserver->description);
@@ -851,7 +851,7 @@ static void fetch_servers_callback(http_response_t* response)
 		newserver->version = _strdup(json_string_value(version));
 		newserver->players = (uint8)json_integer_value(players);
 		newserver->maxplayers = (uint8)json_integer_value(maxPlayers);
-		SDL_UnlockMutex(_mutex);
+		//SDL_UnlockMutex(_mutex);
 	}
 	http_request_dispose(response);
 

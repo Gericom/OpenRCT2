@@ -512,7 +512,7 @@ uint16 hire_new_staff_member(uint8 staffType)
 	command_y = command_z = esi = new_sprite_index = ebp = 0;
 	command_x = 0x8000;
 
-	int autoposition = gConfigGeneral.auto_staff_placement == ((SDL_GetModState() & KMOD_SHIFT) == 0);
+	int autoposition = gConfigGeneral.auto_staff_placement == true;//((SDL_GetModState() & KMOD_SHIFT) == 0);
 	ebx = autoposition << 16 | staffType << 8 | GAME_COMMAND_FLAG_APPLY;
 
 	game_command_callback = game_command_callback_hire_new_staff_member;

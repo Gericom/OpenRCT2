@@ -182,7 +182,7 @@ void chat_history_add(const char *src)
 
 void chat_input(int c)
 {
-	switch (c) {
+	/*switch (c) {
 	case SDL_SCANCODE_RETURN:
 		if (strlen(_chatCurrentLine) > 0) {
 			network_send_chat(_chatCurrentLine);
@@ -193,7 +193,7 @@ void chat_input(int c)
 	case SDL_SCANCODE_ESCAPE:
 		chat_close();
 		return;
-	}
+	}*/
 }
 
 static const char* chat_history_get(unsigned int index)

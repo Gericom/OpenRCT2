@@ -14,6 +14,7 @@
  *****************************************************************************/
 #pragma endregion
 
+#include <stdarg.h> 
 #include "config.h"
 #include "interface/keyboard_shortcut.h"
 #include "interface/themes.h"
@@ -37,19 +38,6 @@ enum {
 	CONFIG_VALUE_TYPE_STRING
 };
 
-size_t _configValueTypeSize[] = {
-	sizeof(bool),
-	sizeof(uint8),
-	sizeof(uint16),
-	sizeof(uint32),
-	sizeof(sint8),
-	sizeof(sint16),
-	sizeof(sint32),
-	sizeof(float),
-	sizeof(double),
-	sizeof(utf8string)
-};
-
 typedef union {
 	sint32 value_sint32;
 
@@ -63,6 +51,32 @@ typedef union {
 	double value_double;
 	utf8string value_string;
 } value_union;
+
+size_t _configValueTypeSize[] = {
+	sizeof(bool),
+	sizeof(uint8),
+	sizeof(uint16),
+	sizeof(uint32),
+	sizeof(sint8),
+	sizeof(sint16),
+	sizeof(sint32),
+	sizeof(float),
+	sizeof(double),
+	sizeof(utf8string)
+};
+
+size_t _configValueTypeOffset[] = {
+	3,
+	3,
+	2,
+	0,
+	3,
+	2,
+	0,
+	0,
+	0,
+	0
+};
 
 typedef struct config_enum_definition {
 	const_utf8string key;
@@ -174,7 +188,7 @@ config_property_definition _generalDefinitions[] = {
 	{ offsetof(general_configuration, autosave_frequency),				"autosave",						CONFIG_VALUE_TYPE_UINT8,		AUTOSAVE_EVERY_5MINUTES,		NULL					},
 	{ offsetof(general_configuration, confirmation_prompt),				"confirmation_prompt",			CONFIG_VALUE_TYPE_BOOLEAN,		false,							NULL					},
 	{ offsetof(general_configuration, construction_marker_colour),		"construction_marker_colour",	CONFIG_VALUE_TYPE_UINT8,		false,							NULL					},
-	{ offsetof(general_configuration, currency_format),					"currency_format",				CONFIG_VALUE_TYPE_UINT8,		CURRENCY_POUNDS,				_currencyEnum			},
+	{ offsetof(general_configuration, currency_format),					"currency_format",				CONFIG_VALUE_TYPE_UINT8,		CURRENCY_EUROS,				_currencyEnum			},
 	{ offsetof(general_configuration, custom_currency_rate),			"custom_currency_rate",			CONFIG_VALUE_TYPE_SINT32,		10,								NULL					},
 	{ offsetof(general_configuration, custom_currency_affix),			"custom_currency_affix",		CONFIG_VALUE_TYPE_SINT8,		CURRENCY_SUFFIX,				_currencySymbolAffixEnum},
 	{ offsetof(general_configuration, custom_currency_symbol),			"custom_currency_symbol",		CONFIG_VALUE_TYPE_STRING,		{ .value_string = "Ctm" },		NULL					},
@@ -184,9 +198,9 @@ config_property_definition _generalDefinitions[] = {
 	{ offsetof(general_configuration, fullscreen_width),				"fullscreen_width",				CONFIG_VALUE_TYPE_SINT32,		-1,								NULL					},
 	{ offsetof(general_configuration, game_path),						"game_path",					CONFIG_VALUE_TYPE_STRING,		{ .value_string = NULL },		NULL					},
 	{ offsetof(general_configuration, landscape_smoothing),				"landscape_smoothing",			CONFIG_VALUE_TYPE_BOOLEAN,		true,							NULL					},
-	{ offsetof(general_configuration, language),						"language",						CONFIG_VALUE_TYPE_UINT16,		LANGUAGE_ENGLISH_UK,			_languageEnum			},
+	{ offsetof(general_configuration, language),						"language",						CONFIG_VALUE_TYPE_UINT16,		LANGUAGE_DUTCH,			_languageEnum			},
 	{ offsetof(general_configuration, measurement_format),				"measurement_format",			CONFIG_VALUE_TYPE_UINT8,		MEASUREMENT_FORMAT_METRIC,	_measurementFormatEnum	},
-	{ offsetof(general_configuration, play_intro),						"play_intro",					CONFIG_VALUE_TYPE_BOOLEAN,		false,							NULL					},
+	{ offsetof(general_configuration, play_intro),						"play_intro",					CONFIG_VALUE_TYPE_BOOLEAN,		/*false*/true,							NULL					},
 	{ offsetof(general_configuration, save_plugin_data),				"save_plugin_data",				CONFIG_VALUE_TYPE_BOOLEAN,		true,							NULL					},
 	{ offsetof(general_configuration, debugging_tools),					"debugging_tools",				CONFIG_VALUE_TYPE_BOOLEAN,		false,							NULL					},
 	{ offsetof(general_configuration, show_height_as_units),			"show_height_as_units",			CONFIG_VALUE_TYPE_BOOLEAN,		false,							NULL					},
@@ -217,7 +231,7 @@ config_property_definition _generalDefinitions[] = {
 	{ offsetof(general_configuration, show_fps),						"show_fps",						CONFIG_VALUE_TYPE_BOOLEAN,		false,							NULL					},
 	{ offsetof(general_configuration, trap_cursor),						"trap_cursor",					CONFIG_VALUE_TYPE_BOOLEAN,		false,							NULL					},
 	{ offsetof(general_configuration, auto_open_shops),					"auto_open_shops",				CONFIG_VALUE_TYPE_BOOLEAN,		false,							NULL					},
-	{ offsetof(general_configuration, scenario_select_mode),			"scenario_select_mode",			CONFIG_VALUE_TYPE_UINT8,		SCENARIO_SELECT_MODE_ORIGIN,	NULL					},
+	{ offsetof(general_configuration, scenario_select_mode),			"scenario_select_mode",			CONFIG_VALUE_TYPE_UINT8,		SCENARIO_SELECT_MODE_DIFFICULTY,	NULL					},
 	{ offsetof(general_configuration, scenario_unlocking_enabled),		"scenario_unlocking_enabled",	CONFIG_VALUE_TYPE_BOOLEAN,		true,							NULL					},
 	{ offsetof(general_configuration, scenario_hide_mega_park),			"scenario_hide_mega_park",		CONFIG_VALUE_TYPE_BOOLEAN,		true,							NULL					},
 	{ offsetof(general_configuration, last_save_game_directory),        "last_game_directory",          CONFIG_VALUE_TYPE_STRING,       { .value_string = NULL },       NULL                    },
@@ -444,7 +458,7 @@ void config_set_defaults()
 						*dst = _strdup(property->default_value.value_string);
 					}
 				} else {
-					memcpy(destValue, &property->default_value, _configValueTypeSize[property->type]);
+					memcpy(destValue, ((uint8_t*)&property->default_value) + _configValueTypeOffset[property->type], _configValueTypeSize[property->type]);
 				}
 			}
 		}
@@ -474,13 +488,13 @@ void config_get_default_path(utf8 *outPath, size_t size)
 
 bool config_open_default()
 {
-	utf8 path[MAX_PATH];
+	//utf8 path[MAX_PATH];
 
-	config_get_default_path(path, sizeof(path));
-	if (config_open(path)) {
-		currency_load_custom_currency_config();
-		return true;
-	}
+	//config_get_default_path(path, sizeof(path));
+	//if (config_open(path)) {
+	//	currency_load_custom_currency_config();
+	//	return true;
+	//}
 
 	return false;
 }
@@ -917,6 +931,8 @@ static bool config_find_rct2_path(utf8 *resultPath)
 		gExePath*/
 	};
 
+	SDL_Delay(3000);
+
 	for (i = 0; i < countof(searchLocations); i++) {
 		if (platform_original_game_data_exists(searchLocations[i])) {
 			safe_strcpy(resultPath, searchLocations[i], MAX_PATH);
@@ -967,7 +983,7 @@ bool config_find_or_browse_install_directory()
 uint16 gShortcutKeys[SHORTCUT_COUNT];
 
 // Default keyboard shortcuts
-static const uint16 _defaultShortcutKeys[SHORTCUT_COUNT] = {
+/*static const uint16 _defaultShortcutKeys[SHORTCUT_COUNT] = {
 	SDL_SCANCODE_BACKSPACE,				// SHORTCUT_CLOSE_TOP_MOST_WINDOW
 	SHIFT | SDL_SCANCODE_BACKSPACE,		// SHORTCUT_CLOSE_ALL_FLOATING_WINDOWS
 	SDL_SCANCODE_ESCAPE,				// SHORTCUT_CANCEL_CONSTRUCTION_MODE
@@ -1021,7 +1037,7 @@ static const uint16 _defaultShortcutKeys[SHORTCUT_COUNT] = {
 	SHORTCUT_UNDEFINED,					// SHORTCUT_PAINT_ORIGINAL_TOGGLE
 	SHORTCUT_UNDEFINED,					// SHORTCUT_DEBUG_PAINT_TOGGLE
 	SHORTCUT_UNDEFINED,					// SHORTCUT_SEE_THROUGH_PATHS_TOGGLE
-};
+};*/
 
 #define SHORTCUT_FILE_VERSION 1
 
@@ -1031,7 +1047,7 @@ static const uint16 _defaultShortcutKeys[SHORTCUT_COUNT] = {
  */
 void config_reset_shortcut_keys()
 {
-	memcpy(gShortcutKeys, _defaultShortcutKeys, sizeof(gShortcutKeys));
+	//memcpy(gShortcutKeys, _defaultShortcutKeys, sizeof(gShortcutKeys));
 }
 
 static void config_shortcut_keys_get_path(utf8 *outPath, size_t size)

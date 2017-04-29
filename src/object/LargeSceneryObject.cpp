@@ -45,12 +45,14 @@ void LargeSceneryObject::ReadLegacy(IReadObjectContext * context, IStream * stre
     GetStringTable()->Read(context, stream, OBJ_STRING_ID_NAME);
 
     rct_object_entry sgEntry = stream->ReadValue<rct_object_entry>();
+	sgEntry.swapEndianness();
     SetPrimarySceneryGroup(&sgEntry);
 
     if (_legacyType.large_scenery.flags & (1 << 2))
     {
         _3dFont = Memory::Allocate<rct_large_scenery_text>();
         stream->Read(_3dFont);
+		_3dFont->swapEndianness();
         _legacyType.large_scenery.text = _3dFont;
     }
 

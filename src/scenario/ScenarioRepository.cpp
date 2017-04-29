@@ -270,6 +270,8 @@ private:
             Console::Error::WriteLine("Unable to read scenario: '%s'", path);
             return;
         }
+		s6Header.swapEndianness();
+		s6Info.swapEndianness();
 
         const utf8 * filename = Path::GetFileName(path);
         scenario_index_entry * existingEntry = GetByFilename(filename);

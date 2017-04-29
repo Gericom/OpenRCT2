@@ -32,6 +32,13 @@ typedef struct rct_banner {
 	uint8 text_colour; //0x05
 	uint8 x; //0x06
 	uint8 y; //0x07
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		string_idx = SDL_SwapLE16(string_idx);
+	}
+#endif
 } rct_banner;
 assert_struct_size(rct_banner, 8);
 #pragma pack(pop)

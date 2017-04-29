@@ -15,7 +15,6 @@
 #pragma endregion
 
 #include "../common.h"
-#include <SDL.h>
 #include "../core/Console.hpp"
 #include "../core/Exception.hpp"
 #include "../core/Math.hpp"
@@ -61,6 +60,7 @@ public:
     void Eject() override
     {
         FreeTitleSequence(_sequence);
+		Console::WriteLine("Ejected");
         _sequence = nullptr;
     }
 
@@ -89,6 +89,7 @@ public:
 
     bool Update() override
     {
+		Console::WriteLine("Update");
         sint32 entryPosition = _position;
         FixViewLocation();
 
@@ -156,6 +157,7 @@ public:
 
     void Reset() override
     {
+		Console::WriteLine("Reset");
         _position = 0;
         _waitCounter = 0;
     }
@@ -164,6 +166,8 @@ public:
     {
         if (targetPosition < 0 || targetPosition >= (sint32)_sequence->NumCommands)
         {
+			Console::WriteLine("Invalid position");
+			while(1);
             throw Exception("Invalid position.");
         }
         if (_position >= targetPosition)
@@ -221,6 +225,7 @@ private:
 
     bool ExecuteCommand(const TitleCommand * command)
     {
+		Console::WriteLine("Command: %d", command->Type);
         switch (command->Type) {
         case TITLE_SCRIPT_END:
             _waitCounter = 1;
@@ -261,7 +266,9 @@ private:
         {
             bool loadSuccess = false;
             uint8 saveIndex = command->SaveIndex;
+			Console::WriteLine("Loading %s", _sequence->Saves[saveIndex]);
             TitleSequenceParkHandle * parkHandle = TitleSequenceGetParkHandle(_sequence, saveIndex);
+			Console::WriteLine("Got parkHandle %p", parkHandle);
             if (parkHandle != nullptr)
             {
                 loadSuccess = LoadParkFromRW(parkHandle->RWOps, parkHandle->IsScenario);
@@ -345,14 +352,19 @@ private:
 
     bool LoadParkFromRW(SDL_RWops * rw, bool isScenario)
     {
+		Console::WriteLine("LoadParkFromRW");
         bool successfulLoad = isScenario ? scenario_load_rw(rw) :
                                            game_load_sv6(rw);
+		Console::WriteLine("Loadok: %d", successfulLoad);
+
         if (!successfulLoad)
         {
             return false;
         }
 
         rct_window * w = window_get_main();
+		Console::WriteLine("window_get_main: %p", w);
+		Console::WriteLine("w->viewport: %p", w->viewport);
         w->viewport_target_sprite = -1;
         w->saved_view_x = gSavedViewX;
         w->saved_view_y = gSavedViewY;

@@ -21,7 +21,6 @@
 extern "C" {
 #endif // __cplusplus
 #include "../common.h"
-#include <SDL.h>
 #include "../platform/platform.h"
 #ifdef __cplusplus
 }
@@ -171,15 +170,15 @@ public:
 	Source* musicsources[PATH_ID_END];
 
 private:
-	static void SDLCALL Callback(void* arg, uint8* data, int length);
+	//static void SDLCALL Callback(void* arg, uint8* data, int length);
 	void MixChannel(Channel& channel, uint8* buffer, int length);
 	void EffectPanS16(Channel& channel, sint16* data, int length);
 	void EffectPanU8(Channel& channel, uint8* data, int length);
 	void EffectFadeS16(sint16* data, int length, int startvolume, int endvolume);
 	void EffectFadeU8(uint8* data, int length, int startvolume, int endvolume);
 	bool MustConvert(Source& source);
-	bool Convert(SDL_AudioCVT& cvt, const uint8* data, unsigned long length, uint8** dataout);
-	SDL_AudioDeviceID deviceid = 0;
+	//bool Convert(SDL_AudioCVT& cvt, const uint8* data, unsigned long length, uint8** dataout);
+	//SDL_AudioDeviceID deviceid = 0;
 	AudioFormat format = { 0 };
 	uint8* effectbuffer = nullptr;
 	std::list<Channel*> channels;
@@ -215,7 +214,7 @@ void Mixer_Channel_SetGroup(void* channel, int group);
 void* Mixer_Play_Music(int pathId, int loop, int streaming);
 void Mixer_SetVolume(float volume);
 
-static int DStoMixerVolume(int volume) { return (int)(SDL_MIX_MAXVOLUME * (SDL_pow(10, (float)volume / 2000))); }
+static int DStoMixerVolume(int volume) { return 0;}//(int)(SDL_MIX_MAXVOLUME * (SDL_pow(10, (float)volume / 2000))); }
 static float DStoMixerPan(int pan) { return (((float)pan + -DSBPAN_LEFT) / DSBPAN_RIGHT) / 2; }
 static double DStoMixerRate(int frequency) { return (double)frequency / 22050; }
 

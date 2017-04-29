@@ -236,7 +236,7 @@ static void window_banner_mousedown(int widgetIndex, rct_window*w, rct_widget* w
 
 		for( int i = 0; i < 13; ++i){
 			gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
-			gDropdownItemsArgs[i] = BannerColouredTextFormats[i + 1];
+			*((uint16*)&gDropdownItemsArgs[i]) = BannerColouredTextFormats[i + 1];
 		}
 
 		//Switch to the dropdown box widget.

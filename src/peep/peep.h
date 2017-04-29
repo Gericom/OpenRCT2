@@ -396,6 +396,10 @@ typedef struct rct_peep_thought {
 	uint8 item;		//1
 	uint8 var_2;	//2
 	uint8 var_3;	//3
+
+#ifdef __cplusplus
+	void swapEndianness() {}
+#endif
 } rct_peep_thought;
 assert_struct_size(rct_peep_thought, 4);
 
@@ -567,6 +571,48 @@ typedef struct rct_peep {
 	uint8 favourite_ride_rating;	// 0xFA
 	uint8 pad_FB;
 	uint32 item_standard_flags;		// 0xFC
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		sprite_left = SDL_SwapLE16(sprite_left);
+		sprite_top = SDL_SwapLE16(sprite_top);
+		sprite_right = SDL_SwapLE16(sprite_right);
+		sprite_bottom = SDL_SwapLE16(sprite_bottom);
+		name_string_idx = SDL_SwapLE16(name_string_idx);
+		next_x = SDL_SwapLE16(next_x);
+		next_y = SDL_SwapLE16(next_y);
+		destination_x = SDL_SwapLE16(destination_x);
+		destination_y = SDL_SwapLE16(destination_y);
+		paid_on_drink = SDL_SwapLE16(paid_on_drink);
+		item_extra_flags = SDL_SwapLE32(item_extra_flags);
+		if(state == PEEP_STATE_SITTING)
+			time_to_sitdown = SDL_SwapLE16(time_to_sitdown);
+		var_74 = SDL_SwapLE16(var_74);
+		time_in_queue = SDL_SwapLE16(time_in_queue);
+		id = SDL_SwapLE32(id);
+		cash_in_pocket = SDL_SwapLE32(cash_in_pocket);
+		cash_spent = SDL_SwapLE32(cash_spent);
+		time_in_park = SDL_SwapLE32(time_in_park);
+		previous_ride_time_out = SDL_SwapLE16(previous_ride_time_out);
+		for(int i = 0; i < (PEEP_MAX_THOUGHTS); i++)
+			thoughts[i].swapEndianness();
+		peep_flags = SDL_SwapLE32(peep_flags);
+		paid_to_enter = SDL_SwapLE16(paid_to_enter);
+		paid_on_rides = SDL_SwapLE16(paid_on_rides);
+		paid_on_food = SDL_SwapLE16(paid_on_food);
+		paid_on_souvenirs = SDL_SwapLE16(paid_on_souvenirs);
+		item_standard_flags = SDL_SwapLE32(item_standard_flags);
+	}
+#endif
 } rct_peep;
 assert_struct_size(rct_peep, 0x100);
 #pragma pack(pop)

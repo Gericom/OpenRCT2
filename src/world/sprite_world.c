@@ -43,6 +43,10 @@ static rct_xyz16 _spritelocations2[MAX_SPRITES];
 
 rct_sprite *get_sprite(size_t sprite_idx)
 {
+	if(sprite_idx == 0xFFFF)
+	{
+		log_verbose("0xFFFF");
+	}
 	openrct2_assert(sprite_idx < MAX_SPRITES, "Tried getting sprite %u", sprite_idx);
 	return &_spriteList[sprite_idx];
 }

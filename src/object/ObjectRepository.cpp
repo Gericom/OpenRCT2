@@ -121,7 +121,7 @@ public:
         {
             _languageId = gCurrentLanguage;
             Scan();
-            Save();
+            //Save();
         }
 
         // SortItems();
@@ -243,10 +243,12 @@ private:
         const std::string &openrct2Path = _env->GetDirectoryPath(DIRBASE::USER, DIRID::OBJECT);
         QueryDirectory(&_queryDirectoryResult, rct2Path);
         QueryDirectory(&_queryDirectoryResult, openrct2Path);
+		Console::WriteLine("Query done!");
     }
 
     void QueryDirectory(QueryDirectoryResult * result, const std::string &directory)
     {
+		Console::WriteLine("Path: %s", directory.c_str());
         utf8 pattern[MAX_PATH];
         String::Set(pattern, sizeof(pattern), directory.c_str());
         Path::Append(pattern, sizeof(pattern), "*.dat");
@@ -308,6 +310,9 @@ private:
     bool Load()
     {
         const std::string &path = _env->GetFilePath(PATHID::CACHE_OBJECTS);
+		Console::WriteLine("%s\n", path.c_str());
+		if(!platform_file_exists(path.c_str()))
+			return false;
         try
         {
             auto fs = FileStream(path, FILE_MODE_OPEN);
@@ -340,6 +345,7 @@ private:
         }
         catch (const IOException &)
         {
+			Console::WriteLine("no repo found");
             return false;
         }
     }
@@ -753,6 +759,7 @@ extern "C"
 
         rct_object_entry entry;
         SDL_RWread(rw, &entry, 16, 1);
+		entry.swapEndianness();
 
         // Check if we already have this object
         if (objRepo->FindObject(&entry) != nullptr)

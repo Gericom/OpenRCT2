@@ -21,7 +21,6 @@
 
 #include "../common.h"
 
-#include <SDL_rwops.h>
 #include <string>
 
 typedef struct evp_pkey_st EVP_PKEY;

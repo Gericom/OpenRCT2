@@ -152,6 +152,7 @@ static bool sawyercoding_try_read_chunk(void * dst, size_t expectedSize, IStream
 
     bool success = false;
     auto header = stream->ReadValue<sawyercoding_chunk_header>();
+	header.length = SDL_SwapLE32(header.length);
     switch (header.encoding) {
     case CHUNK_ENCODING_NONE:
     case CHUNK_ENCODING_RLE:

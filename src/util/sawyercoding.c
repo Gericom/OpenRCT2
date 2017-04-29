@@ -17,6 +17,7 @@
 #include "../platform/platform.h"
 #include "sawyercoding.h"
 #include "../scenario/scenario.h"
+#include "../mem2heap.h"
 #include "util.h"
 
 static size_t decode_chunk_rle(const uint8* src_buffer, uint8* dst_buffer, size_t length);
@@ -75,6 +76,8 @@ int sawyercoding_validate_checksum(SDL_RWops* rw)
 	if (SDL_RWread(rw, &fileChecksum, sizeof(fileChecksum), 1) != 1)
 		return 0;
 
+	fileChecksum = SDL_SwapLE32(fileChecksum);
+
 	// Reset file position
 	SDL_RWseek(rw, 0, RW_SEEK_SET);
 
@@ -84,15 +87,16 @@ int sawyercoding_validate_checksum(SDL_RWops* rw)
 
 bool sawyercoding_read_chunk_safe(SDL_RWops *rw, void *dst, size_t dstLength)
 {
+	log_verbose("sawyercoding_read_chunk_safe");
 	// Allocate 16 MB to store uncompressed data
-	uint8 *tempBuffer = malloc(16 * 1024 * 1024);
-	size_t uncompressedLength = sawyercoding_read_chunk_with_size(rw, tempBuffer, 16 * 1024 * 1024);
+	uint8 *tempBuffer = mem2heap_alloc(/*16*/6 * 1024 * 1024);//malloc(16 * 1024 * 1024);
+	size_t uncompressedLength = sawyercoding_read_chunk_with_size(rw, tempBuffer, 6 * 1024 * 1024);
 	if (uncompressedLength == SIZE_MAX) {
-		free(tempBuffer);
+		mem2heap_free(tempBuffer);
 		return false;
 	} else {
 		memcpy(dst, tempBuffer, min(dstLength, uncompressedLength));
-		free(tempBuffer);
+		mem2heap_free(tempBuffer);
 		return true;
 	}
 }
@@ -105,6 +109,8 @@ bool sawyercoding_skip_chunk(SDL_RWops *rw)
 		log_error("Unable to read chunk header!");
 		return false;
 	}
+
+	chunkHeader.length = SDL_SwapLE32(chunkHeader.length);
 
 	// Skip chunk data
 	SDL_RWseek(rw, chunkHeader.length, RW_SEEK_CUR);
@@ -125,6 +131,8 @@ size_t sawyercoding_read_chunk_with_size(SDL_RWops* rw, uint8 *buffer, const siz
 		log_error("Unable to read chunk header!");
 		return -1;
 	}
+
+	chunkHeader.length = SDL_SwapLE32(chunkHeader.length);
 
 	uint8* src_buffer = malloc(chunkHeader.length);
 	if (src_buffer == NULL) {
@@ -287,7 +295,7 @@ size_t sawyercoding_encode_td6(const uint8* src, uint8* dst, size_t length){
 
 /* Based off of rct2: 0x006770C1 */
 int sawyercoding_validate_track_checksum(const uint8* src, size_t length){
-	uint32 file_checksum = *((uint32*)&src[length - 4]);
+	uint32 file_checksum = SDL_SwapLE32(*((uint32*)&src[length - 4]));
 
 	uint32 checksum = 0;
 	for (size_t i = 0; i < length - 4; i++){
@@ -378,7 +386,7 @@ static size_t decode_chunk_repeat(uint8 *buffer, size_t length)
 	uint8 *src, *dst, *copyOffset;
 
 	// Backup buffer
-	src = malloc(length);
+	src =  mem2heap_alloc(length);
 	memcpy(src, buffer, length);
 	dst = buffer;
 
@@ -394,7 +402,7 @@ static size_t decode_chunk_repeat(uint8 *buffer, size_t length)
 	}
 
 	// Free backup buffer
-	free(src);
+	 mem2heap_free(src);
 
 	// Return final size
 	return dst - buffer;

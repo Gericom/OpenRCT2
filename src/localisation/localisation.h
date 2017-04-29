@@ -79,7 +79,12 @@ extern const rct_string_id DateGameShortMonthNames[MONTH_COUNT];
 
 static inline void set_format_arg_body(uint8 *args, size_t offset, uintptr_t value, size_t size)
 {
-	memcpy(args + offset, &value, size);
+	if(size == 1)
+		memcpy(args + offset, ((uint8_t*)(&value)) + 3, size);
+	else if(size == 2)
+		memcpy(args + offset, ((uint8_t*)(&value)) + 2, size);
+	else
+		memcpy(args + offset, &value, size);
 }
 
 #define set_format_arg(offset, type, value)	\

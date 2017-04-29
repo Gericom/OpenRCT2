@@ -170,13 +170,18 @@ bool rct2_init()
 	if (!gfx_load_g2()) {
 		return false;
 	}
+	log_verbose("gfx_load_g2 done");
 
 	font_sprite_initialise_characters();
+	log_verbose("font_sprite_initialise_characters done");
 	if (!gOpenRCT2Headless) {
 		platform_init();
+		log_verbose("platform_init done");
 		audio_init_ride_sounds_and_info();
-	}
+		log_verbose("audio_init_ride_sounds_and_info done");
+	}	
 	viewport_init_all();
+	log_verbose("viewport_init_all done");
 	news_item_init_queue();
 	reset_park_entrances();
 	user_string_clear_all();

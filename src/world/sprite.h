@@ -22,9 +22,9 @@
 #include "../ride/vehicle.h"
 
 #define SPRITE_INDEX_NULL		0xFFFF
-#define SPRITE_LOCATION_NULL	((sint16)0x8000)
-//#define MAX_SPRITES				10000
-#define MAX_SPRITES				1000
+#define SPRITE_LOCATION_NULL	((sint16)(uint16)0x8000)
+#define MAX_SPRITES				10000
+//#define MAX_SPRITES				1000
 #define NUM_SPRITE_LISTS		6
 
 enum SPRITE_IDENTIFIER {
@@ -76,6 +76,27 @@ typedef struct rct_unk_sprite {
 	uint8 var_2B;
 	uint8 pad_2C[0x45];
 	uint8 var_71;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		sprite_left = SDL_SwapLE16(sprite_left);
+		sprite_top = SDL_SwapLE16(sprite_top);
+		sprite_right = SDL_SwapLE16(sprite_right);
+		sprite_bottom = SDL_SwapLE16(sprite_bottom);
+		name_string_idx = SDL_SwapLE16(name_string_idx);
+		var_24 = SDL_SwapLE16(var_24);
+		frame = SDL_SwapLE16(frame);
+	}
+#endif
 } rct_unk_sprite;
 assert_struct_size(rct_unk_sprite, 0x72);
 
@@ -98,9 +119,25 @@ typedef struct rct_litter {
 	uint8 sprite_direction;			// 0x1E
 	uint8 pad_1F[5];
 	uint32 creationTick;			// 0x24
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		creationTick = SDL_SwapLE32(creationTick);
+	}
+#endif
 } rct_litter;
 assert_struct_size(rct_litter, 0x28);
 
+//Help, frame is not swapped!
 typedef struct rct_balloon {
 	uint8 sprite_identifier;		// 0x00
 	uint8 misc_identifier;			// 0x01
@@ -128,6 +165,23 @@ typedef struct rct_balloon {
 	uint8 pad_28[4];
 	uint8 colour;					// 0x2C
 	uint8 var_2D;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		popped = SDL_SwapLE16(popped);
+		if (popped == 1)
+			frame = SDL_SwapLE16(frame);
+	}
+#endif
 } rct_balloon;
 assert_struct_size(rct_balloon, 0x2e);
 
@@ -155,9 +209,27 @@ typedef struct rct_duck {
 	sint16 target_y;				// 0x32
 	uint8 pad_34[0x14];
 	uint8 state;					// 0x48
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		frame = SDL_SwapLE16(frame);
+		target_x = SDL_SwapLE16(target_x);
+		target_y = SDL_SwapLE16(target_y);
+	}
+#endif
 } rct_duck;
 assert_struct_size(rct_duck, 0x49);
 
+//help var_26 is not swapped
 typedef struct rct_jumping_fountain {
 	uint8 sprite_identifier;		// 0x00
 	uint8 misc_identifier;			// 0x01
@@ -190,6 +262,23 @@ typedef struct rct_jumping_fountain {
 	sint16 target_y;				// 0x32
 	uint8 pad_34[0x12];
 	uint16 iteration;				// 0x46
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		target_x = SDL_SwapLE16(target_x);
+		target_y = SDL_SwapLE16(target_y);
+		iteration = SDL_SwapLE16(iteration);
+	}
+#endif
 } rct_jumping_fountain;
 assert_struct_size(rct_jumping_fountain, 0x48);
 
@@ -215,6 +304,25 @@ typedef struct rct_money_effect {
 	uint8 pad_2C[0x18];
 	sint16 offset_x;				// 0x44
 	uint16 wiggle;					// 0x46
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		var_02 = SDL_SwapLE16(var_02);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		move_delay = SDL_SwapLE16(move_delay);
+		num_movements = SDL_SwapLE16(num_movements);
+		value = SDL_SwapLE32(value);
+		offset_x = SDL_SwapLE16(offset_x);
+		wiggle = SDL_SwapLE16(wiggle);
+	}
+#endif
 } rct_money_effect;
 assert_struct_size(rct_money_effect, 0x48);
 
@@ -258,6 +366,35 @@ typedef struct rct_crashed_vehicle_particle {
 	sint32 acceleration_z;			// 0x40
 	uint8 pad_44[0x2D];
 	uint8 var_71;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		sprite_left = SDL_SwapLE16(sprite_left);
+		sprite_top = SDL_SwapLE16(sprite_top);
+		sprite_right = SDL_SwapLE16(sprite_right);
+		sprite_bottom = SDL_SwapLE16(sprite_bottom);
+		name_string_idx = SDL_SwapLE16(name_string_idx);
+		var_24 = SDL_SwapLE16(var_24);
+		frame = SDL_SwapLE16(frame);
+		var_2E = SDL_SwapLE16(var_2E);
+		velocity_x = SDL_SwapLE16(velocity_x);
+		velocity_y = SDL_SwapLE16(velocity_y);
+		velocity_z = SDL_SwapLE16(velocity_z);
+		pad_36 = SDL_SwapLE16(pad_36);
+		acceleration_x = SDL_SwapLE32(acceleration_x);
+		acceleration_y = SDL_SwapLE32(acceleration_y);
+		acceleration_z = SDL_SwapLE32(acceleration_z);
+	}
+#endif
 } rct_crashed_vehicle_particle;
 assert_struct_size(rct_crashed_vehicle_particle, 0x45 + 0x2D);
 
@@ -288,6 +425,27 @@ typedef struct rct_crash_splash {
 	uint16 name_string_idx;			// 0x22
 	uint16 var_24;
 	uint16 frame;					// 0x26
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		sprite_left = SDL_SwapLE16(sprite_left);
+		sprite_top = SDL_SwapLE16(sprite_top);
+		sprite_right = SDL_SwapLE16(sprite_right);
+		sprite_bottom = SDL_SwapLE16(sprite_bottom);
+		name_string_idx = SDL_SwapLE16(name_string_idx);
+		var_24 = SDL_SwapLE16(var_24);
+		frame = SDL_SwapLE16(frame);
+	}
+#endif
 } rct_crash_splash;
 assert_struct_size(rct_crash_splash, 0x28);
 
@@ -318,8 +476,42 @@ typedef struct rct_steam_particle {
 	uint16 name_string_idx;			// 0x22
 	uint16 var_24;
 	uint16 frame;					// 0x26
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		next_in_quadrant = SDL_SwapLE16(next_in_quadrant);
+		next = SDL_SwapLE16(next);
+		previous = SDL_SwapLE16(previous);
+		sprite_index = SDL_SwapLE16(sprite_index);
+		flags = SDL_SwapLE16(flags);
+		x = SDL_SwapLE16(x);
+		y = SDL_SwapLE16(y);
+		z = SDL_SwapLE16(z);
+		sprite_left = SDL_SwapLE16(sprite_left);
+		sprite_top = SDL_SwapLE16(sprite_top);
+		sprite_right = SDL_SwapLE16(sprite_right);
+		sprite_bottom = SDL_SwapLE16(sprite_bottom);
+		name_string_idx = SDL_SwapLE16(name_string_idx);
+		var_24 = SDL_SwapLE16(var_24);
+		frame = SDL_SwapLE16(frame);
+	}
+#endif
 } rct_steam_particle;
 assert_struct_size(rct_steam_particle, 0x28);
+
+enum {
+	SPRITE_MISC_STEAM_PARTICLE,
+	SPRITE_MISC_MONEY_EFFECT,
+	SPRITE_MISC_CRASHED_VEHICLE_PARTICLE,
+	SPRITE_MISC_EXPLOSION_CLOUD,
+	SPRITE_MISC_CRASH_SPLASH,
+	SPRITE_MISC_EXPLOSION_FLARE,
+	SPRITE_MISC_JUMPING_FOUNTAIN_WATER,
+	SPRITE_MISC_BALLOON,
+	SPRITE_MISC_DUCK,
+	SPRITE_MISC_JUMPING_FOUNTAIN_SNOW
+};
 
 /**
  * Sprite structure.
@@ -338,6 +530,64 @@ typedef union {
 	rct_crashed_vehicle_particle crashed_vehicle_particle;
 	rct_crash_splash crash_splash;
 	rct_steam_particle steam_particle;
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		switch(unknown.sprite_identifier)
+		{
+		case SPRITE_IDENTIFIER_VEHICLE:
+			vehicle.swapEndianness();
+			break;
+		case SPRITE_IDENTIFIER_PEEP:
+			peep.swapEndianness();
+			break;
+		case SPRITE_IDENTIFIER_MISC:
+			{
+				switch(unknown.misc_identifier)
+				{
+				case SPRITE_MISC_STEAM_PARTICLE:
+					steam_particle.swapEndianness();
+					break;
+				case SPRITE_MISC_MONEY_EFFECT:
+					money_effect.swapEndianness();
+					break;
+				case SPRITE_MISC_CRASHED_VEHICLE_PARTICLE:
+					crashed_vehicle_particle.swapEndianness();
+					break;
+				case SPRITE_MISC_EXPLOSION_CLOUD:
+					unknown.swapEndianness();
+					break;
+				case SPRITE_MISC_CRASH_SPLASH:
+					crash_splash.swapEndianness();
+					break;
+				case SPRITE_MISC_EXPLOSION_FLARE:
+					unknown.swapEndianness();
+					break;
+				case SPRITE_MISC_JUMPING_FOUNTAIN_WATER:
+					jumping_fountain.swapEndianness();
+					break;
+				case SPRITE_MISC_BALLOON:
+					balloon.swapEndianness();
+					break;
+				case SPRITE_MISC_DUCK:
+					duck.swapEndianness();
+					break;
+				case SPRITE_MISC_JUMPING_FOUNTAIN_SNOW:
+					jumping_fountain.swapEndianness();
+					break;
+				}
+				break;
+			}
+		case SPRITE_IDENTIFIER_LITTER:
+			litter.swapEndianness();
+			break;
+		case SPRITE_IDENTIFIER_NULL:
+			unknown.swapEndianness();
+			break;
+		}
+	}
+#endif
 } rct_sprite;
 assert_struct_size(rct_sprite, 0x100);
 
@@ -365,19 +615,6 @@ typedef struct rct_sprite_entry {
 assert_struct_size(rct_sprite_entry, 8);
 #endif
 #pragma pack(pop)
-
-enum {
-	SPRITE_MISC_STEAM_PARTICLE,
-	SPRITE_MISC_MONEY_EFFECT,
-	SPRITE_MISC_CRASHED_VEHICLE_PARTICLE,
-	SPRITE_MISC_EXPLOSION_CLOUD,
-	SPRITE_MISC_CRASH_SPLASH,
-	SPRITE_MISC_EXPLOSION_FLARE,
-	SPRITE_MISC_JUMPING_FOUNTAIN_WATER,
-	SPRITE_MISC_BALLOON,
-	SPRITE_MISC_DUCK,
-	SPRITE_MISC_JUMPING_FOUNTAIN_SNOW
-};
 
 enum {
 	SPRITE_FLAGS_IS_CRASHED_VEHICLE_SPRITE = 1 << 7,

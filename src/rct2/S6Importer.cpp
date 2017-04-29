@@ -16,7 +16,9 @@
 
 #include "../core/Exception.hpp"
 #include "../core/IStream.hpp"
+#include "../core/Console.hpp"
 #include "../network/network.h"
+#include "../mem2heap.h"
 #include "S6Importer.h"
 
 extern "C"
@@ -51,15 +53,19 @@ public:
 
 S6Importer::S6Importer()
 {
+	Console::WriteLine("new S6Importer");
     FixIssues = false;
     memset(&_s6, 0, sizeof(_s6));
 }
 
 void S6Importer::LoadSavedGame(const utf8 * path)
 {
+	Console::WriteLine("LoadSavedGame(%s)", path);
     SDL_RWops * rw = SDL_RWFromFile(path, "rb");
     if (rw == nullptr)
     {
+		Console::WriteLine("Unable to open SV6.");
+		while(1);
         throw IOException("Unable to open SV6.");
     }
 
@@ -69,6 +75,7 @@ void S6Importer::LoadSavedGame(const utf8 * path)
         gGameCommandErrorTitle = STR_FILE_CONTAINS_INVALID_DATA;
 
         log_error("failed to load saved game, invalid checksum");
+		while(1);
         throw IOException("Invalid SV6 checksum.");
     }
 
@@ -84,6 +91,8 @@ void S6Importer::LoadScenario(const utf8 * path)
     SDL_RWops * rw = SDL_RWFromFile(path, "rb");
     if (rw == nullptr)
     {
+		Console::WriteLine("Unable to open SV6.");
+		while(1);
         throw IOException("Unable to open SV6.");
     }
 
@@ -95,6 +104,7 @@ void S6Importer::LoadScenario(const utf8 * path)
         gErrorStringId = STR_FILE_CONTAINS_INVALID_DATA;
 
         log_error("failed to load scenario, invalid checksum");
+		while(1);
         throw IOException("Invalid SC6 checksum.");
     }
 
@@ -110,21 +120,22 @@ void S6Importer::LoadSavedGame(SDL_RWops *rw)
     sawyercoding_read_chunk_safe(rw, &_s6.header, sizeof(_s6.header));
     if (_s6.header.type != S6_TYPE_SAVEDGAME)
     {
+		Console::WriteLine("Data is not a saved game.");
+		while(1);
         throw Exception("Data is not a saved game.");
     }
-    log_verbose("saved game classic_flag = 0x%02x\n", _s6.header.classic_flag);
 
     // Read packed objects
     // TODO try to contain this more and not store objects until later
-    for (uint16 i = 0; i < _s6.header.num_packed_objects; i++)
+    for (uint16 i = 0; i < SDL_SwapLE16(_s6.header.num_packed_objects); i++)
     {
         object_load_packed(rw);
     }
-
     sawyercoding_read_chunk_safe(rw, &_s6.objects, sizeof(_s6.objects));
     sawyercoding_read_chunk_safe(rw, &_s6.elapsed_months, 16);
     sawyercoding_read_chunk_safe(rw, &_s6.map_elements, sizeof(_s6.map_elements));
     sawyercoding_read_chunk_safe(rw, &_s6.next_free_map_element_pointer_index, 3048816);
+	_s6.swapEndianness();
 }
 
 void S6Importer::LoadScenario(SDL_RWops *rw)
@@ -132,15 +143,16 @@ void S6Importer::LoadScenario(SDL_RWops *rw)
     sawyercoding_read_chunk_safe(rw, &_s6.header, sizeof(_s6.header));
     if (_s6.header.type != S6_TYPE_SCENARIO)
     {
+		Console::WriteLine("Data is not a scenario.");
+		while(1);
         throw Exception("Data is not a scenario.");
     }
-    log_verbose("scenario classic_flag = 0x%02x\n", _s6.header.classic_flag);
 
     sawyercoding_read_chunk_safe(rw, &_s6.info, sizeof(_s6.info));
 
     // Read packed objects
     // TODO try to contain this more and not store objects until later
-    for (uint16 i = 0; i < _s6.header.num_packed_objects; i++)
+    for (uint16 i = 0; i < SDL_SwapLE16(_s6.header.num_packed_objects); i++)
     {
         object_load_packed(rw);
     }
@@ -156,10 +168,12 @@ void S6Importer::LoadScenario(SDL_RWops *rw)
     sawyercoding_read_chunk_safe(rw, &_s6.current_expenditure, 16);
     sawyercoding_read_chunk_safe(rw, &_s6.park_value, 4);
     sawyercoding_read_chunk_safe(rw, &_s6.completed_company_value, 483816);
+	_s6.swapEndianness();
 }
 
 void S6Importer::Import()
 {
+	Console::WriteLine("Import");
     // _s6.header
     gS6Info = _s6.info;
 
@@ -351,6 +365,8 @@ void S6Importer::Import()
     // Fix and set dynamic variables
     if (!object_load_entries(_s6.objects))
     {
+		Console::WriteLine("ObjectLoadException");
+		while(1);
         throw ObjectLoadException();
     }
     map_update_tile_pointers();
@@ -378,9 +394,13 @@ extern "C"
             gGameCommandErrorTitle = STR_FILE_CONTAINS_INVALID_DATA;
             return 0;
         }
+		log_verbose("checksum ok");
 
         bool result = false;
-        auto s6Importer = new S6Importer();
+		log_verbose(" auto s6Importer = new S6Importer(); size: %d", sizeof(S6Importer));
+        //auto s6Importer = new S6Importer();
+		S6Importer* s6Importer = new (mem2heap_alloc(sizeof(S6Importer))) S6Importer();
+		log_verbose("new S6Importer ok (%p)", s6Importer);
         try
         {
             s6Importer->FixIssues = true;
@@ -396,7 +416,9 @@ extern "C"
         catch (const Exception &)
         {
         }
-        delete s6Importer;
+		s6Importer->~S6Importer();
+		mem2heap_free(s6Importer);
+        //delete s6Importer;
 
         // #2407: Resetting screen time to not open a save prompt shortly after loading a park.
         gScreenAge = 0;
@@ -407,7 +429,7 @@ extern "C"
     bool game_load_sv6_path(const char * path)
     {
         bool result = false;
-        auto s6Importer = new S6Importer();
+        S6Importer* s6Importer = new (mem2heap_alloc(sizeof(S6Importer))) S6Importer();
         try
         {
             s6Importer->FixIssues = true;
@@ -432,7 +454,8 @@ extern "C"
             gErrorType = ERROR_TYPE_FILE_LOAD;
             gErrorStringId = STR_FILE_CONTAINS_INVALID_DATA;
         }
-        delete s6Importer;
+        s6Importer->~S6Importer();
+		mem2heap_free(s6Importer);
 
         gScreenAge = 0;
         gLastAutoSaveUpdate = AUTOSAVE_PAUSE;
@@ -442,7 +465,7 @@ extern "C"
     bool scenario_load_rw(SDL_RWops * rw)
     {
         bool result = false;
-        auto s6Importer = new S6Importer();
+        S6Importer* s6Importer = new (mem2heap_alloc(sizeof(S6Importer))) S6Importer();
         try
         {
             s6Importer->FixIssues = true;
@@ -467,7 +490,8 @@ extern "C"
             gErrorType = ERROR_TYPE_FILE_LOAD;
             gErrorStringId = STR_FILE_CONTAINS_INVALID_DATA;
         }
-        delete s6Importer;
+        s6Importer->~S6Importer();
+		mem2heap_free(s6Importer);
 
         gScreenAge = 0;
         gLastAutoSaveUpdate = AUTOSAVE_PAUSE;
@@ -482,7 +506,7 @@ extern "C"
     int scenario_load(const char * path)
     {
         bool result = false;
-        auto s6Importer = new S6Importer();
+        S6Importer* s6Importer = new (mem2heap_alloc(sizeof(S6Importer))) S6Importer();
         try
         {
             s6Importer->FixIssues = true;
@@ -507,7 +531,8 @@ extern "C"
             gErrorType = ERROR_TYPE_FILE_LOAD;
             gErrorStringId = STR_FILE_CONTAINS_INVALID_DATA;
         }
-        delete s6Importer;
+        s6Importer->~S6Importer();
+		mem2heap_free(s6Importer);
 
         gScreenAge = 0;
         gLastAutoSaveUpdate = AUTOSAVE_PAUSE;

@@ -44,8 +44,8 @@ assert_struct_size(rating_tuple, 6);
 typedef struct ride_list_item {
 	union {
 		struct {
-			uint8 type;
 			uint8 entry_index;
+			uint8 type;			
 		};
 		uint16 ride_type_and_entry;
 	};
@@ -329,6 +329,80 @@ typedef struct rct_ride {
 	uint16 cable_lift;				// 0x1FE
 	uint16 queue_length[4];			// 0x200
 	uint8 pad_208[0x58];
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		pad_002 = SDL_SwapLE16(pad_002);
+		for(int i = 0; i < (32); i++)
+			vehicle_colours[i].swapEndianness();
+		name = SDL_SwapLE16(name);
+		name_arguments_type_name = SDL_SwapLE16(name_arguments_type_name);
+		name_arguments_number = SDL_SwapLE16(name_arguments_number);
+		overall_view = SDL_SwapLE16(overall_view);
+		for(int i = 0; i < (4); i++)
+			station_starts[i] = SDL_SwapLE16(station_starts[i]);
+		for(int i = 0; i < (4); i++)
+			entrances[i] = SDL_SwapLE16(entrances[i]);
+		for(int i = 0; i < (4); i++)
+			exits[i] = SDL_SwapLE16(exits[i]);
+		for(int i = 0; i < (4); i++)
+			last_peep_in_queue[i] = SDL_SwapLE16(last_peep_in_queue[i]);
+		for(int i = 0; i < (32); i++)
+			vehicles[i] = SDL_SwapLE16(vehicles[i]);
+		boat_hire_return_position = SDL_SwapLE16(boat_hire_return_position);
+		max_speed = SDL_SwapLE32(max_speed);
+		average_speed = SDL_SwapLE32(average_speed);
+		for(int i = 0; i < (4); i++)
+			length[i] = SDL_SwapLE32(length[i]);
+		for(int i = 0; i < (4); i++)
+			time[i] = SDL_SwapLE16(time[i]);
+		max_positive_vertical_g = SDL_SwapLE16(max_positive_vertical_g);
+		max_negative_vertical_g = SDL_SwapLE16(max_negative_vertical_g);
+		max_lateral_g = SDL_SwapLE16(max_lateral_g);
+		previous_vertical_g = SDL_SwapLE16(previous_vertical_g);
+		previous_lateral_g = SDL_SwapLE16(previous_lateral_g);
+		testing_flags = SDL_SwapLE32(testing_flags);
+		turn_count_default = SDL_SwapLE16(turn_count_default);
+		turn_count_banked = SDL_SwapLE16(turn_count_banked);
+		turn_count_sloped = SDL_SwapLE16(turn_count_sloped);
+		sheltered_length = SDL_SwapLE32(sheltered_length);
+		var_11C = SDL_SwapLE16(var_11C);
+		cur_num_customers = SDL_SwapLE16(cur_num_customers);
+		num_customers_timeout = SDL_SwapLE16(num_customers_timeout);
+		for(int i = 0; i < (10); i++)
+			num_customers[i] = SDL_SwapLE16(num_customers[i]);
+		price = SDL_SwapLE16(price);
+		excitement = SDL_SwapLE16(excitement);
+		intensity = SDL_SwapLE16(intensity);
+		nausea = SDL_SwapLE16(nausea);
+		value = SDL_SwapLE16(value);
+		chairlift_bullwheel_rotation = SDL_SwapLE16(chairlift_bullwheel_rotation);
+		total_customers = SDL_SwapLE32(total_customers);
+		total_profit = SDL_SwapLE32(total_profit);
+		slide_peep = SDL_SwapLE16(slide_peep);
+		build_date = SDL_SwapLE16(build_date);
+		upkeep_cost = SDL_SwapLE16(upkeep_cost);
+		race_winner = SDL_SwapLE16(race_winner);
+		music_position = SDL_SwapLE32(music_position);
+		mechanic = SDL_SwapLE16(mechanic);
+		price_secondary = SDL_SwapLE16(price_secondary);
+		reliability = SDL_SwapLE16(reliability);
+		no_primary_items_sold = SDL_SwapLE32(no_primary_items_sold);
+		no_secondary_items_sold = SDL_SwapLE32(no_secondary_items_sold);
+		income_per_hour = SDL_SwapLE32(income_per_hour);
+		profit = SDL_SwapLE32(profit);
+		vehicle_change_timeout = SDL_SwapLE16(vehicle_change_timeout);
+		guests_favourite = SDL_SwapLE16(guests_favourite);
+		lifecycle_flags = SDL_SwapLE32(lifecycle_flags);
+		total_air_time = SDL_SwapLE16(total_air_time);
+		cable_lift_x = SDL_SwapLE16(cable_lift_x);
+		cable_lift_y = SDL_SwapLE16(cable_lift_y);
+		cable_lift = SDL_SwapLE16(cable_lift);
+		for(int i = 0; i < (4); i++)
+			queue_length[i] = SDL_SwapLE16(queue_length[i]);
+	}
+#endif
 } rct_ride;
 assert_struct_size(rct_ride, 0x260);
 
@@ -350,6 +424,15 @@ typedef struct rct_ride_measurement {
 	sint8 lateral[RIDE_MEASUREMENT_MAX_ITEMS];	// 0x12CC
 	uint8 velocity[RIDE_MEASUREMENT_MAX_ITEMS];	// 0x258C
 	uint8 altitude[RIDE_MEASUREMENT_MAX_ITEMS];	// 0x384C
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		last_use_tick = SDL_SwapLE32(last_use_tick);
+		num_items = SDL_SwapLE16(num_items);
+		current_item = SDL_SwapLE16(current_item);
+	}
+#endif
 } rct_ride_measurement;
 assert_struct_size(rct_ride_measurement, 0x4b0c);
 

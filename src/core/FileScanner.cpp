@@ -21,7 +21,7 @@
     #include <windows.h>
 #endif
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__NDS__) || defined(__WII__)
     #include <dirent.h>
     #include <sys/types.h>
     #include <sys/stat.h>
@@ -33,6 +33,7 @@
     }
 #endif
 
+#include "Console.hpp"
 #include <stack>
 #include <vector>
 #include "FileScanner.h"
@@ -303,7 +304,7 @@ private:
 
 #endif // __WINDOWS__
 
-#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#if defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__NDS__) || defined(__WII__)
 
 class FileScannerUnix final : public FileScannerBase
 {
@@ -316,8 +317,10 @@ public:
 protected:
     void GetDirectoryChildren(std::vector<DirectoryChild> &children, const utf8 * path) override
     {
+		Console::WriteLine("GetDirectoryChildren: %s", path);
         struct dirent * * namelist;
         int count = scandir(path, &namelist, FilterFunc, alphasort);
+		Console::WriteLine("count: %d", count);
         if (count > 0)
         {
             for (int i = 0; i < count; i++)
@@ -326,6 +329,7 @@ protected:
                 if (!String::Equals(node->d_name, ".") &&
                     !String::Equals(node->d_name, ".."))
                 {
+					//Console::WriteLine("%s/%s", path, node->d_name);
                     DirectoryChild child = CreateChild(path, node);
                     children.push_back(child);
                 }
@@ -379,7 +383,7 @@ IFileScanner * Path::ScanDirectory(const utf8 * pattern, bool recurse)
 {
 #ifdef __WINDOWS__
     return new FileScannerWindows(pattern, recurse);
-#elif defined(__unix__) || (defined(__APPLE__) && defined(__MACH__))
+#elif defined(__unix__) || (defined(__APPLE__) && defined(__MACH__)) || defined(__NDS__) || defined(__WII__)
     return new FileScannerUnix(pattern, recurse);
 #endif
 }

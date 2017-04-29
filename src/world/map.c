@@ -92,7 +92,7 @@ sint16 gMapSizeMaxXY;
 sint16 gMapBaseZ;
 
 #if defined(NO_RCT2)
-rct_map_element gMapElements[0x3000];//0x30000];
+rct_map_element gMapElements[0x30000];
 rct_map_element *gMapElementTilePointers[MAX_TILE_MAP_ELEMENT_POINTERS];
 #else
 rct_map_element *gMapElements = RCT2_ADDRESS(RCT2_ADDRESS_MAP_ELEMENTS, rct_map_element);
@@ -226,7 +226,7 @@ void map_element_iterator_restart_for_tile(map_element_iterator *it)
 rct_map_element *map_get_first_element_at(int x, int y)
 {
 	if (x < 0 || y < 0 || x > 255 || y > 255) {
-		log_error("Trying to access element outside of range");
+		log_error("Trying to access element outside of range (%d, %d)", x, y);
 		return NULL;
 	}
 	return gMapElementTilePointers[x + y * 256];
@@ -235,7 +235,7 @@ rct_map_element *map_get_first_element_at(int x, int y)
 void map_set_tile_elements(int x, int y, rct_map_element *elements)
 {
 	if (x < 0 || y < 0 || x > 255 || y > 255) {
-		log_error("Trying to access element outside of range");
+		log_error("Trying to access element outside of range (%d, %d)", x, y);
 		return;
 	}
 	gMapElementTilePointers[x + y * 256] = elements;

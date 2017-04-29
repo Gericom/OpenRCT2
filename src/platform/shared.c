@@ -33,6 +33,9 @@
 #include "../util/util.h"
 #include "../world/climate.h"
 #include "platform.h"
+#include <wiiuse/wpad.h>
+
+extern GXRModeObj *rmode;
 
 typedef void(*update_palette_func)(const uint8*, int, int);
 
@@ -51,16 +54,16 @@ int gNumResolutions = 0;
 resolution *gResolutions = NULL;
 int gResolutionsAllowAnyAspectRatio = 0;
 
-SDL_Window *gWindow = NULL;
-SDL_Renderer *gRenderer = NULL;
-SDL_Texture *gBufferTexture = NULL;
-SDL_PixelFormat *gBufferTextureFormat = NULL;
+//SDL_Window *gWindow = NULL;
+//SDL_Renderer *gRenderer = NULL;
+//SDL_Texture *gBufferTexture = NULL;
+//SDL_PixelFormat *gBufferTextureFormat = NULL;
 SDL_Color gPalette[256];
 uint32 gPaletteHWMapped[256];
 
 bool gSteamOverlayActive = false;
 
-static const int _fullscreen_modes[] = { 0, SDL_WINDOW_FULLSCREEN, SDL_WINDOW_FULLSCREEN_DESKTOP };
+//static const int _fullscreen_modes[] = { 0, SDL_WINDOW_FULLSCREEN, SDL_WINDOW_FULLSCREEN_DESKTOP };
 static unsigned int _lastGestureTimestamp;
 static float _gestureRadius;
 
@@ -82,7 +85,7 @@ static int resolution_sort_func(const void *pa, const void *pb)
 void platform_update_fullscreen_resolutions()
 {
 	// Query number of display modes
-	int displayIndex = SDL_GetWindowDisplayIndex(gWindow);
+	/*int displayIndex = SDL_GetWindowDisplayIndex(gWindow);
 	int numDisplayModes = SDL_GetNumDisplayModes(displayIndex);
 
 	// Get desktop aspect ratio
@@ -126,7 +129,7 @@ void platform_update_fullscreen_resolutions()
 	if (gConfigGeneral.fullscreen_width == -1 || gConfigGeneral.fullscreen_height == -1) {
 		gConfigGeneral.fullscreen_width = gResolutions[gNumResolutions - 1].width;
 		gConfigGeneral.fullscreen_height = gResolutions[gNumResolutions - 1].height;
-	}
+	}*/
 }
 
 void platform_get_closest_resolution(int inWidth, int inHeight, int *outWidth, int *outHeight)
@@ -157,8 +160,8 @@ void platform_get_closest_resolution(int inWidth, int inHeight, int *outWidth, i
 		*outWidth = closestWidth;
 		*outHeight = closestHeight;
 	} else {*/
-	*outWidth = 256;// 640;
-	*outHeight = 192 * 2;//480;
+	*outWidth = rmode->fbWidth;
+	*outHeight = rmode->xfbHeight;
 	//}
 }
 
@@ -180,18 +183,18 @@ static void platform_resize(int width, int height)
 
 	drawing_engine_resize();
 
-	flags = SDL_GetWindowFlags(gWindow);
+	//flags = SDL_GetWindowFlags(gWindow);
 
-	if ((flags & SDL_WINDOW_MINIMIZED) == 0) {
+	//if ((flags & SDL_WINDOW_MINIMIZED) == 0) {
 		window_resize_gui(dst_w, dst_h);
 		window_relocate_windows(dst_w, dst_h);
-	}
+	//}
 
 	gfx_invalidate_screen();
 
 	// Check if the window has been resized in windowed mode and update the config file accordingly
 	// This is called in rct2_update and is only called after resizing a window has finished
-	const int nonWindowFlags =
+	/*const int nonWindowFlags =
 		SDL_WINDOW_MAXIMIZED | SDL_WINDOW_MINIMIZED | SDL_WINDOW_FULLSCREEN | SDL_WINDOW_FULLSCREEN_DESKTOP;
 	if (!(flags & nonWindowFlags)) {
 		if (width != gConfigGeneral.window_width || height != gConfigGeneral.window_height) {
@@ -199,7 +202,7 @@ static void platform_resize(int width, int height)
 			gConfigGeneral.window_height = height;
 			config_save_default();
 		}
-	}
+	}*/
 }
 
 /**
@@ -216,11 +219,11 @@ void platform_trigger_resize()
 		scale_quality = 0;
 	}
 	snprintf(scale_quality_buffer, sizeof(scale_quality_buffer), "%u", scale_quality);
-	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, scale_quality_buffer);
+	//SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, scale_quality_buffer);
 
-	int w, h;
-	SDL_GetWindowSize(gWindow, &w, &h);
-	platform_resize(w, h);
+	//int w, h;
+	//SDL_GetWindowSize(gWindow, &w, &h);
+	platform_resize(rmode->fbWidth, rmode->xfbHeight);//w, h);
 }
 
 static uint8 soft_light(uint8 a, uint8 b)
@@ -271,9 +274,9 @@ void platform_update_palette(const uint8* colours, int start_index, int num_colo
 		gPalette[i].b = b;
 		//gPalette[i].a = 0;
 		colours += 4;
-		if (gBufferTextureFormat != NULL) {
-			gPaletteHWMapped[i] = SDL_MapRGB(gBufferTextureFormat, gPalette[i].r, gPalette[i].g, gPalette[i].b);
-		}
+		//if (gBufferTextureFormat != NULL) {
+		//	gPaletteHWMapped[i] = SDL_MapRGB(gBufferTextureFormat, gPalette[i].r, gPalette[i].g, gPalette[i].b);
+		//}
 	}
 
 	if (!gOpenRCT2Headless) {
@@ -283,7 +286,49 @@ void platform_update_palette(const uint8* colours, int start_index, int num_colo
 
 void platform_process_messages()
 {
-	SDL_Event e;
+	gLastKeyPressed = 0;
+	// gCursorState.wheel = 0;
+	gCursorState.left &= ~CURSOR_CHANGED;
+	gCursorState.middle &= ~CURSOR_CHANGED;
+	gCursorState.right &= ~CURSOR_CHANGED;
+	gCursorState.old = 0;
+	gCursorState.touch = false;
+	WPAD_ScanPads();
+	s32 res = WPAD_Probe(0, NULL);
+	if (res == WPAD_ERR_NONE)
+	{
+		int x, y;
+		platform_get_cursor_position_scaled(&x, &y);
+		u32 pressed = WPAD_ButtonsDown(0);
+		if(pressed & WPAD_BUTTON_A)
+		{
+			store_mouse_input(MOUSE_STATE_LEFT_PRESS, x, y);
+			gCursorState.left = CURSOR_PRESSED;
+			gCursorState.old = 1;
+		}
+		if(pressed & WPAD_BUTTON_UP)
+			keyboard_shortcut_handle_command(SHORTCUT_ZOOM_VIEW_IN);
+		else if(pressed & WPAD_BUTTON_DOWN)
+			keyboard_shortcut_handle_command(SHORTCUT_ZOOM_VIEW_OUT);
+		if(pressed & WPAD_BUTTON_LEFT)
+			keyboard_shortcut_handle_command(SHORTCUT_ROTATE_VIEW_CLOCKWISE);
+		else if(pressed & WPAD_BUTTON_RIGHT)
+			keyboard_shortcut_handle_command(SHORTCUT_ROTATE_VIEW_ANTICLOCKWISE);
+		u32 upped = WPAD_ButtonsUp(0);
+		if(upped & WPAD_BUTTON_A)
+		{
+			store_mouse_input(MOUSE_STATE_LEFT_RELEASE, x, y);
+			gCursorState.left = CURSOR_RELEASED;
+			gCursorState.old = 3;
+		}
+		gCursorState.x = x;
+		gCursorState.y = y;
+	}
+	else
+	{
+		
+	}
+	/*SDL_Event e;
 
 	gLastKeyPressed = 0;
 	// gCursorState.wheel = 0;
@@ -552,7 +597,7 @@ void platform_process_messages()
 
 	// Updates the state of the keys
 	int numKeys = 256;
-	gKeysState = SDL_GetKeyboardState(&numKeys);
+	gKeysState = SDL_GetKeyboardState(&numKeys);*/
 }
 
 static void platform_close_window()
@@ -578,14 +623,15 @@ void platform_init()
 
 static void platform_create_window()
 {
+	log_verbose("platform_create_window");
 	int width, height;
 
-	if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-		log_fatal("SDL_Init %s", SDL_GetError());
-		exit(-1);
-	}
+	//if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+	//	log_fatal("SDL_Init %s", SDL_GetError());
+	//	exit(-1);
+	//}
 
-	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, gConfigGeneral.minimize_fullscreen_focus_loss ? "1" : "0");
+	//SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, gConfigGeneral.minimize_fullscreen_focus_loss ? "1" : "0");
 
 	cursors_initialise();
 
@@ -594,23 +640,23 @@ static void platform_create_window()
 	sub_68371D();
 
 	// Get window size
-	width = gConfigGeneral.window_width;
-	height = gConfigGeneral.window_height;
-	if (width == -1) width = 640;
-	if (height == -1) height = 480;
+	width = rmode->fbWidth;//gConfigGeneral.window_width;
+	height = rmode->xfbHeight;//gConfigGeneral.window_height;
+	//if (width == -1) width = 640;
+	//if (height == -1) height = 480;
 
 	// Create window in window first rather than fullscreen so we have the display the window is on first
-	gWindow = SDL_CreateWindow(
-		"OpenRCT2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
-	);
+	//gWindow = SDL_CreateWindow(
+	//	"OpenRCT2", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, width, height, SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL
+	//);
 
-	if (!gWindow) {
-		log_fatal("SDL_CreateWindow failed %s", SDL_GetError());
-		exit(-1);
-	}
+	//if (!gWindow) {
+	//	log_fatal("SDL_CreateWindow failed %s", SDL_GetError());
+	//	exit(-1);
+	//}
 
-	SDL_SetWindowGrab(gWindow, gConfigGeneral.trap_cursor ? SDL_TRUE : SDL_FALSE);
-	SDL_SetWindowMinimumSize(gWindow, 720, 480);
+	//SDL_SetWindowGrab(gWindow, gConfigGeneral.trap_cursor ? SDL_TRUE : SDL_FALSE);
+	//SDL_SetWindowMinimumSize(gWindow, 720, 480);
 	platform_init_window_icon();
 
 	// Initialise the surface, palette and draw buffer
@@ -622,19 +668,20 @@ static void platform_create_window()
 	// Check if steam overlay renderer is loaded into the process
 	gSteamOverlayActive = platform_check_steam_overlay_attached();
 	platform_trigger_resize();
+	log_verbose("platform_create_window done");
 }
 
 int platform_scancode_to_rct_keycode(int sdl_key)
 {
-	char keycode = (char)SDL_GetKeyFromScancode((SDL_Scancode)sdl_key);
+	//char keycode = (char)SDL_GetKeyFromScancode((SDL_Scancode)sdl_key);
 
 	// Until we reshufle the text files to use the new positions
 	// this will suffice to move the majority to the correct positions.
 	// Note any special buttons PgUp PgDwn are mapped wrong.
-	if (keycode >= 'a' && keycode <= 'z')
-		keycode = toupper(keycode);
+	//if (keycode >= 'a' && keycode <= 'z')
+	//	keycode = toupper(keycode);
 
-	return keycode;
+	return 0;//keycode;
 }
 
 void platform_free()
@@ -642,7 +689,7 @@ void platform_free()
 	free(gKeysPressed);
 
 	platform_close_window();
-	SDL_Quit();
+	//SDL_Quit();
 
 #ifdef __WINDOWS__
 	platform_windows_close_console();
@@ -652,22 +699,22 @@ void platform_free()
 void platform_start_text_input(utf8* buffer, int max_length)
 {
 	// TODO This doesn't work, and position could be improved to where text entry is
-	SDL_Rect rect = { 10, 10, 100, 100 };
-	SDL_SetTextInputRect(&rect);
-
-	SDL_StartTextInput();
+	//SDL_Rect rect = { 10, 10, 100, 100 };
+	//SDL_SetTextInputRect(&rect);
+	
+	//SDL_StartTextInput();
 
 	textinputbuffer_init(&gTextInput, buffer, max_length);
 }
 
 bool platform_is_input_active()
 {
-	return SDL_IsTextInputActive() && gTextInput.buffer != NULL;
+	return false;//SDL_IsTextInputActive() && gTextInput.buffer != NULL;
 }
 
 void platform_stop_text_input()
 {
-	SDL_StopTextInput();
+	//SDL_StopTextInput();
 	gTextInput.buffer = NULL;
 	gTextInputCompositionActive = false;
 }
@@ -676,27 +723,27 @@ void platform_set_fullscreen_mode(int mode)
 {
 	int width, height;
 
-	mode = _fullscreen_modes[mode];
+	//mode = _fullscreen_modes[mode];
 
 	// HACK Changing window size when in fullscreen usually has no effect
-	if (mode == SDL_WINDOW_FULLSCREEN)
-		SDL_SetWindowFullscreen(gWindow, 0);
+	//if (mode == SDL_WINDOW_FULLSCREEN)
+	//	SDL_SetWindowFullscreen(gWindow, 0);
 
 	// Set window size
-	if (mode == SDL_WINDOW_FULLSCREEN) {
-		platform_update_fullscreen_resolutions();
-		platform_get_closest_resolution(gConfigGeneral.fullscreen_width, gConfigGeneral.fullscreen_height, &width, &height);
-		SDL_SetWindowSize(gWindow, width, height);
-	} else if (mode == 0) {
-		SDL_SetWindowSize(gWindow, gConfigGeneral.window_width, gConfigGeneral.window_height);
-	}
+	//if (mode == SDL_WINDOW_FULLSCREEN) {
+	//	platform_update_fullscreen_resolutions();
+	//	platform_get_closest_resolution(gConfigGeneral.fullscreen_width, gConfigGeneral.fullscreen_height, &width, &height);
+		//SDL_SetWindowSize(gWindow, width, height);
+	//} else if (mode == 0) {
+		//SDL_SetWindowSize(gWindow, gConfigGeneral.window_width, gConfigGeneral.window_height);
+	//}
 
-	if (SDL_SetWindowFullscreen(gWindow, mode)) {
-		log_fatal("SDL_SetWindowFullscreen %s", SDL_GetError());
-		exit(1);
+	//if (SDL_SetWindowFullscreen(gWindow, mode)) {
+	//	log_fatal("SDL_SetWindowFullscreen %s", SDL_GetError());
+	//	exit(1);
 
 		// TODO try another display mode rather than just exiting the game
-	}
+	//}
 }
 
 void platform_toggle_windowed_mode()
@@ -722,7 +769,7 @@ void platform_refresh_video()
 	int width = gScreenWidth;
 	int height = gScreenHeight;
 
-	SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, gConfigGeneral.minimize_fullscreen_focus_loss ? "1" : "0");
+	//SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, gConfigGeneral.minimize_fullscreen_focus_loss ? "1" : "0");
 
 	drawing_engine_dispose();
 	drawing_engine_init();
@@ -733,17 +780,43 @@ void platform_refresh_video()
 
 void platform_hide_cursor()
 {
-	SDL_ShowCursor(SDL_DISABLE);
+	//SDL_ShowCursor(SDL_DISABLE);
 }
 
 void platform_show_cursor()
 {
-	SDL_ShowCursor(SDL_ENABLE);
+	//SDL_ShowCursor(SDL_ENABLE);
 }
 
 void platform_get_cursor_position(int *x, int *y)
 {
-	SDL_GetMouseState(x, y);
+	struct ir_t irdata;
+	WPAD_IR(0, &irdata);
+	if(irdata.smooth_valid)
+	{
+		int mx = (int)(irdata.sx - 200);
+		int my = (int)(irdata.sy - 250);
+
+		if (mx < 0)
+			mx = 0;
+
+		if (mx >= rmode->fbWidth)
+			mx = rmode->fbWidth - 1;
+
+		if (my < 0)
+			my = 0;
+
+		if (my >= rmode->xfbHeight)
+			my = rmode->xfbHeight - 1;
+
+		*x = mx;
+		*y = my;
+	}
+	else
+	{
+		*x = 0;
+		*y = 0;
+	}
 }
 
 void platform_get_cursor_position_scaled(int *x, int *y)
@@ -757,7 +830,7 @@ void platform_get_cursor_position_scaled(int *x, int *y)
 
 void platform_set_cursor_position(int x, int y)
 {
-	SDL_WarpMouseInWindow(NULL, x, y);
+	//SDL_WarpMouseInWindow(NULL, x, y);
 }
 
 unsigned int platform_get_ticks()

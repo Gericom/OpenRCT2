@@ -17,7 +17,6 @@
 #ifndef DISABLE_OPENGL
 
 #include "../../../common.h"
-#include <SDL_video.h>
 #include "../../../core/Memory.hpp"
 #include "OpenGLFramebuffer.h"
 

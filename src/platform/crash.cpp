@@ -14,7 +14,6 @@
  *****************************************************************************/
 #pragma endregion
 
-#include <SDL_platform.h>
 #include "crash.h"
 
 #ifdef USE_BREAKPAD

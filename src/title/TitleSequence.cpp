@@ -15,7 +15,7 @@
 #pragma endregion
 
 #include <vector>
-#include <SDL.h>
+#include "../platform/platform.h"
 #include "../common.h"
 #include "../core/Collections.hpp"
 #include "../core/Console.hpp"
@@ -109,6 +109,8 @@ extern "C"
         seq->NumCommands = commands.size();
         seq->Commands = Collections::ToArray(commands);
         seq->IsZip = isZip;
+
+		log_verbose("Loading title sequence done");
         return seq;
     }
 
@@ -487,7 +489,7 @@ static void LegacyScriptGetLine(SDL_RWops * file, char * parts)
     int load = 0;
     for (; part < 3;)
     {
-        int c = 0;
+        char c = 0;
         if (SDL_RWread(file, &c, 1, 1) != 1)
         {
             c = EOF;
@@ -535,6 +537,7 @@ static void LegacyScriptGetLine(SDL_RWops * file, char * parts)
 
 static void * ReadScriptFile(const utf8 * path, size_t * outSize)
 {
+	Console::WriteLine("ReadScriptFile(%s)", path);
     void * buffer = nullptr;
     size_t size = 0;
     try
@@ -546,6 +549,7 @@ static void * ReadScriptFile(const utf8 * path, size_t * outSize)
     }
     catch (Exception)
     {
+		Console::WriteLine("Error", path);
         Memory::Free(buffer);
         buffer = nullptr;
         size = 0;

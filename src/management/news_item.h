@@ -53,6 +53,15 @@ typedef struct rct_news_item {
 	uint8 day;					// 0x0A
 	uint8 pad_0B;				// 0x0B
 	utf8 text[256];				// 0x0C
+
+#ifdef __cplusplus
+	void swapEndianness()
+	{
+		assoc = SDL_SwapLE32(assoc);
+		ticks = SDL_SwapLE16(ticks);
+		month_year = SDL_SwapLE16(month_year);
+	}
+#endif
 } rct_news_item;
 assert_struct_size(rct_news_item, 12 + 256);
 #pragma pack(pop)

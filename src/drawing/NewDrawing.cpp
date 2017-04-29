@@ -88,7 +88,7 @@ extern "C"
         {
             try
             {
-                _drawingEngine->Initialise(gWindow);
+                _drawingEngine->Initialise();//gWindow);
                 _drawingEngine->SetUncappedFrameRate(gConfigGeneral.uncap_fps == 1);
             }
             catch (const Exception &ex)

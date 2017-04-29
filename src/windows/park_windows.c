@@ -699,8 +699,8 @@ static void window_park_entrance_mousedown(int widgetIndex, rct_window*w, rct_wi
 	if (widgetIndex == WIDX_OPEN_OR_CLOSE) {
 		gDropdownItemsFormat[0] = STR_DROPDOWN_MENU_LABEL;
 		gDropdownItemsFormat[1] = STR_DROPDOWN_MENU_LABEL;
-		gDropdownItemsArgs[0] = STR_CLOSE_PARK;
-		gDropdownItemsArgs[1] = STR_OPEN_PARK;
+		*((uint16*)&gDropdownItemsArgs[0]) = STR_CLOSE_PARK;
+		*((uint16*)&gDropdownItemsArgs[1]) = STR_OPEN_PARK;
 		window_dropdown_show_text(
 			w->x + widget->left,
 			w->y + widget->top,

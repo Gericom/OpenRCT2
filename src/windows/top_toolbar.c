@@ -415,7 +415,7 @@ static void window_top_toolbar_mousedown(int widgetIndex, rct_window*w, rct_widg
 				_menuDropdownIncludesTwitch = true;
 				gDropdownItemsFormat[12] = STR_EMPTY;
 				gDropdownItemsFormat[DDIDX_ENABLE_TWITCH] = STR_TOGGLE_OPTION;
-				gDropdownItemsArgs[DDIDX_ENABLE_TWITCH] = STR_TWITCH_ENABLE;
+				*((uint16*)&gDropdownItemsArgs[DDIDX_ENABLE_TWITCH]) = STR_TWITCH_ENABLE;
 				numItems = 14;
 			}
 		#endif
@@ -441,10 +441,10 @@ static void window_top_toolbar_mousedown(int widgetIndex, rct_window*w, rct_widg
 		gDropdownItemsFormat[2] = STR_TOGGLE_OPTION;
 		gDropdownItemsFormat[3] = STR_TOGGLE_OPTION;
 		gDropdownItemsFormat[4] = STR_TOGGLE_OPTION;
-		gDropdownItemsArgs[0] = STR_CHEAT_TITLE;
-		gDropdownItemsArgs[2] = STR_ENABLE_SANDBOX_MODE;
-		gDropdownItemsArgs[3] = STR_DISABLE_CLEARANCE_CHECKS;
-		gDropdownItemsArgs[4] = STR_DISABLE_SUPPORT_LIMITS;
+		*((uint16*)&gDropdownItemsArgs[0]) = STR_CHEAT_TITLE;
+		*((uint16*)&gDropdownItemsArgs[2]) = STR_ENABLE_SANDBOX_MODE;
+		*((uint16*)&gDropdownItemsArgs[3]) = STR_DISABLE_CLEARANCE_CHECKS;
+		*((uint16*)&gDropdownItemsArgs[4]) = STR_DISABLE_SUPPORT_LIMITS;
 		window_dropdown_show_text(
 			w->x + widget->left,
 			w->y + widget->top,
@@ -2856,14 +2856,14 @@ void top_toolbar_init_fastforward_menu(rct_window* w, rct_widget* widget) {
 	if (gConfigGeneral.debugging_tools) {
 		gDropdownItemsFormat[4] = STR_EMPTY;
 		gDropdownItemsFormat[5] = STR_TOGGLE_OPTION;
-		gDropdownItemsArgs[5] = STR_SPEED_HYPER;
+		*((uint16*)&gDropdownItemsArgs[5]) = STR_SPEED_HYPER;
 		num_items = 6;
 	}
 
-	gDropdownItemsArgs[0] = STR_SPEED_NORMAL;
-	gDropdownItemsArgs[1] = STR_SPEED_QUICK;
-	gDropdownItemsArgs[2] = STR_SPEED_FAST;
-	gDropdownItemsArgs[3] = STR_SPEED_TURBO;
+	*((uint16*)&gDropdownItemsArgs[0]) = STR_SPEED_NORMAL;
+	*((uint16*)&gDropdownItemsArgs[1]) = STR_SPEED_QUICK;
+	*((uint16*)&gDropdownItemsArgs[2]) = STR_SPEED_FAST;
+	*((uint16*)&gDropdownItemsArgs[3]) = STR_SPEED_TURBO;
 
 
 	window_dropdown_show_text(
@@ -2941,17 +2941,17 @@ void top_toolbar_rotate_menu_dropdown(short dropdownIndex)
 void top_toolbar_init_debug_menu(rct_window* w, rct_widget* widget)
 {
 	gDropdownItemsFormat[DDIDX_CONSOLE] = STR_TOGGLE_OPTION;
-	gDropdownItemsArgs[DDIDX_CONSOLE] = STR_DEBUG_DROPDOWN_CONSOLE;
+	*((uint16*)&gDropdownItemsArgs[DDIDX_CONSOLE]) = STR_DEBUG_DROPDOWN_CONSOLE;
 	gDropdownItemsFormat[DDIDX_TILE_INSPECTOR] = STR_TOGGLE_OPTION;
-	gDropdownItemsArgs[DDIDX_TILE_INSPECTOR] = STR_DEBUG_DROPDOWN_TILE_INSPECTOR;
+	*((uint16*)&gDropdownItemsArgs[DDIDX_TILE_INSPECTOR]) = STR_DEBUG_DROPDOWN_TILE_INSPECTOR;
 	gDropdownItemsFormat[DDIDX_OBJECT_SELECTION] = STR_TOGGLE_OPTION;
-	gDropdownItemsArgs[DDIDX_OBJECT_SELECTION] = STR_DEBUG_DROPDOWN_OBJECT_SELECTION;
+	*((uint16*)&gDropdownItemsArgs[DDIDX_OBJECT_SELECTION]) = STR_DEBUG_DROPDOWN_OBJECT_SELECTION;
 	gDropdownItemsFormat[DDIDX_INVENTIONS_LIST] = STR_TOGGLE_OPTION;
-	gDropdownItemsArgs[DDIDX_INVENTIONS_LIST] = STR_DEBUG_DROPDOWN_INVENTIONS_LIST;
+	*((uint16*)&gDropdownItemsArgs[DDIDX_INVENTIONS_LIST]) = STR_DEBUG_DROPDOWN_INVENTIONS_LIST;
 	gDropdownItemsFormat[DDIDX_SCENARIO_OPTIONS] = STR_TOGGLE_OPTION;
-	gDropdownItemsArgs[DDIDX_SCENARIO_OPTIONS] = STR_DEBUG_DROPDOWN_SCENARIO_OPTIONS;
+	*((uint16*)&gDropdownItemsArgs[DDIDX_SCENARIO_OPTIONS]) = STR_DEBUG_DROPDOWN_SCENARIO_OPTIONS;
 	gDropdownItemsFormat[DDIDX_DEBUG_PAINT] = STR_TOGGLE_OPTION;
-	gDropdownItemsArgs[DDIDX_DEBUG_PAINT] = STR_DEBUG_DROPDOWN_DEBUG_PAINT;
+	*((uint16*)&gDropdownItemsArgs[DDIDX_DEBUG_PAINT]) = STR_DEBUG_DROPDOWN_DEBUG_PAINT;
 
 	window_dropdown_show_text(
 		w->x + widget->left,
@@ -3045,17 +3045,17 @@ void top_toolbar_init_view_menu(rct_window* w, rct_widget* widget) {
 	gDropdownItemsFormat[11] = STR_TOGGLE_OPTION;
 	gDropdownItemsFormat[12] = STR_TOGGLE_OPTION;
 
-	gDropdownItemsArgs[0] = STR_UNDERGROUND_VIEW;
-	gDropdownItemsArgs[1] = STR_REMOVE_BASE_LAND;
-	gDropdownItemsArgs[2] = STR_REMOVE_VERTICAL_FACES;
-	gDropdownItemsArgs[4] = STR_SEE_THROUGH_RIDES;
-	gDropdownItemsArgs[5] = STR_SEE_THROUGH_SCENERY;
-	gDropdownItemsArgs[6] = STR_SEE_THROUGH_PATHS;
-	gDropdownItemsArgs[7] = STR_INVISIBLE_SUPPORTS;
-	gDropdownItemsArgs[8] = STR_INVISIBLE_PEOPLE;
-	gDropdownItemsArgs[10] = STR_HEIGHT_MARKS_ON_LAND;
-	gDropdownItemsArgs[11] = STR_HEIGHT_MARKS_ON_RIDE_TRACKS;
-	gDropdownItemsArgs[12] = STR_HEIGHT_MARKS_ON_PATHS;
+	*((uint16*)&gDropdownItemsArgs[0]) = STR_UNDERGROUND_VIEW;
+	*((uint16*)&gDropdownItemsArgs[1]) = STR_REMOVE_BASE_LAND;
+	*((uint16*)&gDropdownItemsArgs[2]) = STR_REMOVE_VERTICAL_FACES;
+	*((uint16*)&gDropdownItemsArgs[4]) = STR_SEE_THROUGH_RIDES;
+	*((uint16*)&gDropdownItemsArgs[5]) = STR_SEE_THROUGH_SCENERY;
+	*((uint16*)&gDropdownItemsArgs[6]) = STR_SEE_THROUGH_PATHS;
+	*((uint16*)&gDropdownItemsArgs[7]) = STR_INVISIBLE_SUPPORTS;
+	*((uint16*)&gDropdownItemsArgs[8]) = STR_INVISIBLE_PEOPLE;
+	*((uint16*)&gDropdownItemsArgs[10]) = STR_HEIGHT_MARKS_ON_LAND;
+	*((uint16*)&gDropdownItemsArgs[11]) = STR_HEIGHT_MARKS_ON_RIDE_TRACKS;
+	*((uint16*)&gDropdownItemsArgs[12]) = STR_HEIGHT_MARKS_ON_PATHS;
 
 	window_dropdown_show_text(
 		w->x + widget->left,

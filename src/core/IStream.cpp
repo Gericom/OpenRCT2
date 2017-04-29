@@ -67,3 +67,4 @@ void IStream::WriteString(const std::string &str)
 {
     WriteString(str.c_str());
 }
+

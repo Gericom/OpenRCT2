@@ -14,13 +14,11 @@
  *****************************************************************************/
 #pragma endregion
 
-#include <SDL_platform.h>
-
 #ifdef __WINDOWS__
 	// winsock2 must be included before windows.h
 	#include <winsock2.h>
 #else
-	#include <arpa/inet.h>
+	//#include <arpa/inet.h>
 #endif
 
 #include "../core/Guard.hpp"

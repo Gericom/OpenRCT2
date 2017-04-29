@@ -18,7 +18,6 @@
 
 #include "GLSLTypes.h"
 #include "OpenGLShaderProgram.h"
-#include <SDL_pixels.h>
 #include <vector>
 
 // Per-instance data for images

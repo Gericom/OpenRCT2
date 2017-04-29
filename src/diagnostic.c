@@ -30,19 +30,22 @@ const char * _level_strings[] = {
 	"INFO"
 };
 
-extern void nocashPrint(const char* txt);
-
 void diagnostic_log(int diagnosticLevel, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
 
-	char* res;
-	if (vasprintf(&res, format, args) >= 0)
-	{
-		nocashPrint(res);
-		free(res);
-	}
+	char buf[1024];
+	vsnprintf(buf, 1024, format, args);
+	platform_print(buf);
+	//printf(buf);
+    //vprintf(format, args);
+	//char* res;
+	//if (vasprintf(&res, format, args) >= 0)
+	//{
+		//nocashPrint(res);
+	//	free(res);
+	//}
 
 	va_end(args);
 
@@ -70,13 +73,17 @@ void diagnostic_log_with_location(int diagnosticLevel, const char *file, const c
 {
 	va_list args;
 	va_start(args, format);
-
-	char* res;
-	if (vasprintf(&res, format, args) >= 0)
-	{
-		nocashPrint(res);
-		free(res);
-	}
+	char buf[1024];
+	vsnprintf(buf, 1024, format, args);
+	platform_print(buf);
+	//printf(buf);
+    //vprintf(format, args);
+	//char* res;
+	//if (vasprintf(&res, format, args) >= 0)
+	//{
+	//	nocashPrint(res);
+	//	free(res);
+	//}
 
 	va_end(args);
 

@@ -67,7 +67,6 @@ extern "C" {
 #include <string>
 #include <vector>
 #include <map>
-#include <SDL.h>
 #include "../core/Json.hpp"
 #include "../core/Nullable.hpp"
 #include "NetworkConnection.h"

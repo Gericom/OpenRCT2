@@ -1326,7 +1326,7 @@ void window_staff_options_mousedown(int widgetIndex, rct_window* w, rct_widget* 
 		if (costume == peep->sprite_type) {
 			itemsChecked = 1 << i;
 		}
-		gDropdownItemsArgs[i] = staffCostumeNames[costume];
+		*((uint16*)&gDropdownItemsArgs[i]) = staffCostumeNames[costume];
 		gDropdownItemsFormat[i] = STR_DROPDOWN_MENU_LABEL;
 	}
 
