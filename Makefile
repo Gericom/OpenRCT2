@@ -25,7 +25,7 @@ INCLUDES	:= include $(SOURCES)
 # options for code generation
 #---------------------------------------------------------------------------------
 
-CFLAGS	:= -g -Os -Wall -fstrict-aliasing -ffunction-sections -fdata-sections -Wundef -Wmissing-declarations -Winit-self -Wall -Wno-unknown-pragmas -Wno-unused-function -Wno-missing-braces -Wno-comment \
+CFLAGS	:= -g -O3 -Wall -fstrict-aliasing -ffunction-sections -fdata-sections -Wundef -Wmissing-declarations -Winit-self -Wall -Wno-unknown-pragmas -Wno-unused-function -Wno-missing-braces -Wno-comment \
 			$(MACHDEP) $(INCLUDE) -D__WII__ -D__powerpc__ -DDISABLE_OPENGL -DDISABLE_NETWORK -DDISABLE_HTTP -DDISABLE_TWITCH -DDEBUG=3 -DNO_RCT2
 CXXFLAGS	:=	$(CFLAGS) -std=gnu++11 -Wnon-virtual-dtor
 CFLAGS += -std=gnu99

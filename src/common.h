@@ -384,7 +384,7 @@ typedef struct SDL_Color {
 #define SDL_GetPerformanceFrequency() secs_to_ticks(1)
 #define SDL_GetPerformanceCounter() SYS_Time()
 
-#define SDL_MIX_MAXVOLUME 1
+#define SDL_MIX_MAXVOLUME 128
 
 typedef int8_t Sint8;
 typedef int16_t Sint16;

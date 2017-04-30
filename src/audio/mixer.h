@@ -104,6 +104,7 @@ public:
 	Source_SampleStream() = default;
 	~Source_SampleStream();
 	bool LoadWAV(SDL_RWops* rw);
+	bool LoadCSS1(const char* filename, unsigned int offset);
 
 private:
 	Uint32 FindChunk(SDL_RWops* rw, Uint32 wanted_id);
@@ -170,7 +171,7 @@ public:
 	Source* musicsources[PATH_ID_END];
 
 private:
-	//static void SDLCALL Callback(void* arg, uint8* data, int length);
+	static void /*SDLCALL*/ Callback(void* arg, uint8* data, int length);
 	void MixChannel(Channel& channel, uint8* buffer, int length);
 	void EffectPanS16(Channel& channel, sint16* data, int length);
 	void EffectPanU8(Channel& channel, uint8* data, int length);
@@ -178,7 +179,7 @@ private:
 	void EffectFadeU8(uint8* data, int length, int startvolume, int endvolume);
 	bool MustConvert(Source& source);
 	//bool Convert(SDL_AudioCVT& cvt, const uint8* data, unsigned long length, uint8** dataout);
-	//SDL_AudioDeviceID deviceid = 0;
+	/*SDL_AudioDeviceID*/int deviceid = 0;
 	AudioFormat format = { 0 };
 	uint8* effectbuffer = nullptr;
 	std::list<Channel*> channels;

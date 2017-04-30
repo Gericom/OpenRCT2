@@ -23,10 +23,158 @@ extern "C" {
 	#include "../rct2.h"
 	#include "audio.h"
 }
+#include "mem2heap.h"
 #include "mixer.h"
 #include <cmath>
+#include "../core/Console.hpp"
 #include "../core/Math.hpp"
 #include "../core/Util.hpp"
+
+typedef struct SDL_AudioSpec {
+	int freq;		/* DSP frequency -- samples per second */
+	Uint16 format;		/* Audio data format */
+	Uint8  channels;	/* Number of channels: 1 mono, 2 stereo */
+	Uint8  silence;		/* Audio buffer silence value (calculated) */
+	Uint16 samples;		/* Audio buffer size in samples (power of 2) */
+	Uint16 padding;		/* Necessary for some compile environments */
+	Uint32 size;		/* Audio buffer size in bytes (calculated) */
+	/* This function is called when the audio device needs more data.
+	   'stream' is a pointer to the audio data buffer
+	   'len' is the length of that buffer in bytes.
+	   Once the callback returns, the buffer will no longer be valid.
+	   Stereo samples are stored in a LRLRLR ordering.
+	*/
+	void (*callback)(void *userdata, Uint8 *stream, int len);
+	void  *userdata;
+} SDL_AudioSpec;
+
+#define SAMPLES_PER_DMA_BUFFER (512)
+static Uint32 dma_buffers[2][SAMPLES_PER_DMA_BUFFER*8] __attribute__((aligned(32)));
+static int dma_buffers_size[2] = { SAMPLES_PER_DMA_BUFFER*4, SAMPLES_PER_DMA_BUFFER*4 };
+static Uint8 whichab = 0;
+
+#define AUDIOSTACK 16384*2
+static lwpq_t audioqueue;
+static lwp_t athread = LWP_THREAD_NULL;
+static Uint8 astack[AUDIOSTACK];
+static bool stopaudio = false;
+static int currentfreq;
+
+static SDL_AudioSpec current_audio_spec;
+//static bool inited = false;
+
+static void *
+AudioThread (void *arg)
+{
+	while (1)
+	{
+		if(stopaudio)
+			break;
+
+		memset(dma_buffers[whichab], 0, SAMPLES_PER_DMA_BUFFER*4);
+
+		// Is the device ready?
+		//if (!current_audio || current_audio->paused)
+		//{
+		//	DCFlushRange(dma_buffers[whichab], SAMPLES_PER_DMA_BUFFER*4);
+		//	dma_buffers_size[whichab] = SAMPLES_PER_DMA_BUFFER*4;
+		//}
+		/*else if (current_audio->convert.needed) // Is conversion required?
+		{
+			SDL_mutexP(current_audio->mixer_lock);
+			// Get the client to produce audio
+			current_audio->spec.callback(
+				current_audio->spec.userdata,
+				current_audio->convert.buf,
+				current_audio->convert.len);
+			SDL_mutexV(current_audio->mixer_lock);
+
+			// Convert the audio
+			SDL_ConvertAudio(&current_audio->convert);
+
+			// Copy from SDL buffer to DMA buffer
+			memcpy(dma_buffers[whichab], current_audio->convert.buf, current_audio->convert.len_cvt);
+			DCFlushRange(dma_buffers[whichab], current_audio->convert.len_cvt);
+			dma_buffers_size[whichab] = current_audio->convert.len_cvt;
+		}*/
+		//else
+		{
+			//SDL_mutexP(current_audio->mixer_lock);
+			current_audio_spec.callback(
+				current_audio_spec.userdata,
+				(Uint8 *)dma_buffers[whichab],
+				SAMPLES_PER_DMA_BUFFER*4);
+			DCFlushRange(dma_buffers[whichab], SAMPLES_PER_DMA_BUFFER*4);
+			dma_buffers_size[whichab] = SAMPLES_PER_DMA_BUFFER*4;
+			//SDL_mutexV(current_audio->mixer_lock);
+		}
+		LWP_ThreadSleep (audioqueue);
+	}
+	return NULL;
+}
+
+static void
+DMACallback()
+{
+	whichab ^= 1;
+	AUDIO_InitDMA ((Uint32)dma_buffers[whichab], dma_buffers_size[whichab]);
+	LWP_ThreadSignal (audioqueue);
+}
+
+void WII_AudioStart()
+{
+	if (currentfreq == 32000)
+		AUDIO_SetDSPSampleRate(AI_SAMPLERATE_32KHZ);
+	else
+		AUDIO_SetDSPSampleRate(AI_SAMPLERATE_48KHZ);
+
+	// startup conversion thread
+	stopaudio = false;
+	LWP_InitQueue (&audioqueue);
+	LWP_CreateThread (&athread, AudioThread, NULL, astack, AUDIOSTACK, 67);
+
+	// Start the first chunk of audio playing
+	AUDIO_RegisterDMACallback(DMACallback);
+	DMACallback();
+	AUDIO_StartDMA();
+}
+
+void SDL_CalculateAudioSpec(SDL_AudioSpec *spec)
+{
+	switch (spec->format) {
+		case AUDIO_U8:
+			spec->silence = 0x80;
+			break;
+		default:
+			spec->silence = 0x00;
+			break;
+	}
+	spec->size = (spec->format&0xFF)/8;
+	spec->size *= spec->channels;
+	spec->size *= spec->samples;
+}
+
+static int WIIAUD_OpenAudio(/*_THIS, */SDL_AudioSpec *spec)
+{
+	if (spec->freq != 32000 && spec->freq != 48000)
+		spec->freq = 32000;
+
+	// Set up actual spec.
+	spec->format	= AUDIO_S16MSB;
+	spec->channels	= 2;
+	spec->samples	= SAMPLES_PER_DMA_BUFFER;
+	spec->padding	= 0;
+	SDL_CalculateAudioSpec(spec);
+	current_audio_spec = *spec;
+
+	memset(dma_buffers[0], 0, sizeof(dma_buffers[0]));
+	memset(dma_buffers[1], 0, sizeof(dma_buffers[0]));
+
+	currentfreq = spec->freq;
+	WII_AudioStart();
+
+	return 1;
+}
 
 Mixer gMixer;
 
@@ -128,6 +276,7 @@ bool Source_Sample::LoadCSS1(const char *filename, unsigned int offset)
 
 	Uint32 numsounds;
 	SDL_RWread(rw, &numsounds, sizeof(numsounds), 1);
+	numsounds = SDL_SwapLE32(numsounds);
 	if (offset > numsounds) {
 		SDL_RWclose(rw);
 		return false;
@@ -135,9 +284,11 @@ bool Source_Sample::LoadCSS1(const char *filename, unsigned int offset)
 	SDL_RWseek(rw, offset * 4, RW_SEEK_CUR);
 	Uint32 soundoffset;
 	SDL_RWread(rw, &soundoffset, sizeof(soundoffset), 1);
+	soundoffset = SDL_SwapLE32(soundoffset);
 	SDL_RWseek(rw, soundoffset, RW_SEEK_SET);
 	Uint32 soundsize;
 	SDL_RWread(rw, &soundsize, sizeof(soundsize), 1);
+	soundsize = SDL_SwapLE32(soundsize);
 	length = soundsize;
 #pragma pack(push, 1)
 	struct WaveFormatEx
@@ -161,15 +312,19 @@ bool Source_Sample::LoadCSS1(const char *filename, unsigned int offset)
 	waveformat.bitspersample = SDL_SwapLE16(waveformat.bitspersample);
 	waveformat.extrasize = SDL_SwapLE16(waveformat.extrasize);
 	format.freq = waveformat.frequency;
-	format.format = AUDIO_S16LSB;
+	format.format = AUDIO_S16SYS;//AUDIO_S16LSB;
 	format.channels = waveformat.channels;
-	data = new (std::nothrow) uint8[length];
+	data = (uint8*)mem2heap_alloc(length);//new (std::nothrow) uint8[length];
 	if (!data) {
 		log_verbose("Unable to allocate data");
 		SDL_RWclose(rw);
 		return false;
 	}
 	SDL_RWread(rw, data, length, 1);
+	for(int i = 0; i < length / 2; i++)
+	{
+		((uint16_t*)data)[i] = SDL_SwapLE16(((uint16_t*)data)[i]);
+	}
 	SDL_RWclose(rw);
 	return true;
 }
@@ -180,7 +335,8 @@ void Source_Sample::Unload()
 		if (issdlwav) {
 		//	SDL_FreeWAV(data);
 		} else {
-			delete[] data;
+			mem2heap_free(data);
+			//delete[] data;
 		}
 		data = 0;
 	}
@@ -244,6 +400,15 @@ unsigned long Source_SampleStream::Read(unsigned long offset, const uint8** data
 	if (read == (size_t)-1) {
 		return 0;
 	}
+	if(format.format == AUDIO_S16SYS)
+	{
+		//log_verbose("fix");
+		//fix this
+		for(int i = 0; i < length / 2; i++)
+		{
+			((uint16_t*)buffer)[i] = SDL_SwapLE16(((uint16_t*)buffer)[i]);
+		}
+	}
 	return (unsigned long)read;
 }
 
@@ -306,7 +471,7 @@ bool Source_SampleStream::LoadWAV(SDL_RWops* rw)
 			format.format = AUDIO_U8;
 			break;
 		case 16:
-			format.format = AUDIO_S16LSB;
+			format.format = AUDIO_S16SYS;//AUDIO_S16LSB;
 			break;
 		default:
 			log_verbose("Invalid bits per sample");
@@ -345,6 +510,61 @@ Uint32 Source_SampleStream::FindChunk(SDL_RWops* rw, Uint32 wanted_id)
 		}
 	}
 	return 0;
+}
+
+bool Source_SampleStream::LoadCSS1(const char *filename, unsigned int offset)
+{
+	log_verbose("Source_SampleStream::LoadCSS1(%s, %d)", filename, offset);
+
+	Unload();
+	rw = SDL_RWFromFile(filename, "rb");
+	if (rw == NULL) {
+		log_verbose("Unable to load %s", filename);
+		return false;
+	}
+
+	Uint32 numsounds;
+	SDL_RWread(rw, &numsounds, sizeof(numsounds), 1);
+	numsounds = SDL_SwapLE32(numsounds);
+	if (offset > numsounds) {
+		SDL_RWclose(rw);
+		return false;
+	}
+	SDL_RWseek(rw, offset * 4, RW_SEEK_CUR);
+	Uint32 soundoffset;
+	SDL_RWread(rw, &soundoffset, sizeof(soundoffset), 1);
+	soundoffset = SDL_SwapLE32(soundoffset);
+	SDL_RWseek(rw, soundoffset, RW_SEEK_SET);
+	Uint32 soundsize;
+	SDL_RWread(rw, &soundsize, sizeof(soundsize), 1);
+	soundsize = SDL_SwapLE32(soundsize);
+	length = soundsize;
+#pragma pack(push, 1)
+	struct WaveFormatEx
+	{
+		Uint16 encoding;
+		Uint16 channels;
+		Uint32 frequency;
+		Uint32 byterate;
+		Uint16 blockalign;
+		Uint16 bitspersample;
+		Uint16 extrasize;
+	} waveformat;
+#pragma pack(pop)
+	assert_struct_size(waveformat, 18);
+	SDL_RWread(rw, &waveformat, sizeof(waveformat), 1);
+	waveformat.encoding = SDL_SwapLE16(waveformat.encoding);
+	waveformat.channels = SDL_SwapLE16(waveformat.channels);
+	waveformat.frequency = SDL_SwapLE32(waveformat.frequency);
+	waveformat.byterate = SDL_SwapLE32(waveformat.byterate);
+	waveformat.blockalign = SDL_SwapLE16(waveformat.blockalign);
+	waveformat.bitspersample = SDL_SwapLE16(waveformat.bitspersample);
+	waveformat.extrasize = SDL_SwapLE16(waveformat.extrasize);
+	format.freq = waveformat.frequency;
+	format.format = AUDIO_S16SYS;//AUDIO_S16LSB;
+	format.channels = waveformat.channels;
+	databegin = SDL_RWtell(rw);
+	return true;
 }
 
 void Source_SampleStream::Unload()
@@ -464,31 +684,49 @@ Mixer::Mixer()
 void Mixer::Init(const char* device)
 {
 	Close();
-	/*SDL_AudioSpec want, have;
-	SDL_zero(want);
+	AUDIO_Init(0);
+	/*AESND_Init();
+	format.format = AUDIO_S16SYS;
+	format.channels = 2;
+	format.freq = 44100;
+	const char* filename = get_file_path(PATH_ID_CSS1);
+	for (int i = 0; i < (int)Util::CountOf(css1sources); i++) {
+		Source_Sample* source_sample = new Source_Sample;
+		if (source_sample->LoadCSS1(filename, i)) {
+			//source_sample->Convert(format); // convert to audio output format, saves some cpu usage but requires a bit more memory, optional
+			css1sources[i] = source_sample;
+		} else {
+			css1sources[i] = &source_null;
+			delete source_sample;
+		}
+	}
+	effectbuffer = new uint8[(/*have.samples/1024 * format.BytesPerSample() * format.channels)];*/
+	SDL_AudioSpec want, have;
+	memset(&want, 0, sizeof(want));
+	//SDL_zero(want);
 	want.freq = 44100;
 	want.format = AUDIO_S16SYS;
 	want.channels = 2;
 	want.samples = 1024;
 	want.callback = Callback;
 	want.userdata = this;
-	deviceid = SDL_OpenAudioDevice(device, 0, &want, &have, 0);
-	format.format = have.format;
-	format.channels = have.channels;
-	format.freq = have.freq;
+	/*deviceid = */WIIAUD_OpenAudio(&want);//SDL_OpenAudio(&want, &have);//SDL_OpenAudioDevice(device, 0, &want, &have, 0);
+	format.format = /*have*/want.format;
+	format.channels = /*have*/want.channels;
+	format.freq = /*have*/want.freq;
 	const char* filename = get_file_path(PATH_ID_CSS1);
 	for (int i = 0; i < (int)Util::CountOf(css1sources); i++) {
-		Source_Sample* source_sample = new Source_Sample;
+		Source_SampleStream* source_sample = new Source_SampleStream;
 		if (source_sample->LoadCSS1(filename, i)) {
-			source_sample->Convert(format); // convert to audio output format, saves some cpu usage but requires a bit more memory, optional
+			//source_sample->Convert(format); // convert to audio output format, saves some cpu usage but requires a bit more memory, optional
 			css1sources[i] = source_sample;
 		} else {
 			css1sources[i] = &source_null;
 			delete source_sample;
 		}
-	}*/
-	//effectbuffer = new uint8[(have.samples * format.BytesPerSample() * format.channels)];
-	//SDL_PauseAudioDevice(deviceid, 0);
+	}
+	effectbuffer = new uint8[(/*have*/want.samples * format.BytesPerSample() * format.channels)];
+	//SDL_PauseAudio(0);
 }
 
 void Mixer::Close()
@@ -556,8 +794,9 @@ bool Mixer::LoadMusic(size_t pathId)
 	}
 	if (!musicsources[pathId]) {
 		const char* filename = get_file_path((int)pathId);
-		Source_Sample* source_sample = new Source_Sample;
-		if (source_sample->LoadWAV(filename)) {
+		SDL_RWops* rw = SDL_RWFromFile(filename, "rb");
+		Source_SampleStream* source_sample = new Source_SampleStream;
+		if (source_sample->LoadWAV(rw)) {
 			musicsources[pathId] = source_sample;
 			return true;
 		} else {
@@ -575,7 +814,7 @@ void Mixer::SetVolume(float volume)
 	Mixer::volume = volume;
 }
 
-/*void SDLCALL Mixer::Callback(void* arg, uint8* stream, int length)
+void Mixer::Callback(void* arg, uint8* stream, int length)
 {
 	Mixer* mixer = static_cast<Mixer*>(arg);
 	memset(stream, 0, length);
@@ -589,12 +828,12 @@ void Mixer::SetVolume(float volume)
 			++i;
 		}
 	}
-}*/
+}
 
 void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 {
 	// Did the volume level get changed? Recalculate level in this case.
-	/*if (setting_sound_vol != gConfigSound.sound_volume) {
+	if (setting_sound_vol != gConfigSound.sound_volume) {
 		setting_sound_vol = gConfigSound.sound_volume;
 		adjust_sound_vol = powf(setting_sound_vol / 100.f, 10.f / 6.f);
 	}
@@ -611,8 +850,8 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 	if (channel.source && channel.source->Length() > 0 && !channel.done) {
 		AudioFormat streamformat = channel.source->Format();
 		int loaded = 0;
-		SDL_AudioCVT cvt;
-		cvt.len_ratio = 1;
+		//SDL_AudioCVT cvt;
+		//cvt.len_ratio = 1;
 		do {
 			int samplesize = format.channels * format.BytesPerSample();
 			int samples = length / samplesize;
@@ -626,14 +865,14 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 			if (channel.offset < channel.source->Length()) {
 				bool mustconvert = false;
 				if (MustConvert(*channel.source)) {
-					if (SDL_BuildAudioCVT(&cvt, streamformat.format, streamformat.channels, streamformat.freq, Mixer::format.format, Mixer::format.channels, Mixer::format.freq) == -1) {
-						break;
-					}
+				//	if (SDL_BuildAudioCVT(&cvt, streamformat.format, streamformat.channels, streamformat.freq, Mixer::format.format, Mixer::format.channels, Mixer::format.freq) == -1) {
+				//		break;
+				//	}
 					mustconvert = true;
 				}
 
 				const uint8* datastream = 0;
-				int toread = (int)(samplestoread / cvt.len_ratio) * samplesize;
+				int toread = (int)(samplestoread * streamformat.freq / format.freq * streamformat.channels / format.channels * (streamformat.format == AUDIO_S16SYS ? 2 : 1) / (format.format == AUDIO_S16SYS ? 2 : 1) /*/ cvt.len_ratio*/) * samplesize;
 				int readfromstream = (channel.source->GetSome(channel.offset, &datastream, toread));
 				if (readfromstream == 0) {
 					break;
@@ -644,11 +883,79 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 
 				if (mustconvert) {
 					// tofix: there seems to be an issue with converting audio using SDL_ConvertAudio in the callback vs preconverted, can cause pops and static depending on sample rate and channels
-					if (Convert(cvt, datastream, readfromstream, &dataconverted)) {
+					/*if (Convert(cvt, datastream, readfromstream, &dataconverted)) {
 						tomix = dataconverted;
 						lengthloaded = cvt.len_cvt;
 					} else {
 						break;
+					}*/
+					//Console::WriteLine("format.freq: %d, streamformat.freq: %d", format.freq, streamformat.freq);
+					//Console::WriteLine("format.channels: %d", format.channels);
+					if(streamformat.format == AUDIO_S16SYS)
+					{
+						if(streamformat.channels == 2)
+						{
+							float sample = 0;
+							float delta = (float)format.freq / (float)streamformat.freq;
+							float invdelta = (float)streamformat.freq / (float)format.freq;
+							lengthloaded = samplestoread * 4;//readfromstream * delta;
+							dataconverted = new uint8[lengthloaded];
+							for(int i = 0; i < lengthloaded / 2; i+=2)
+							{
+								((sint16*)&dataconverted[0])[i] = ((sint16*)&datastream[0])[(int)(sample * 2)];
+								((sint16*)&dataconverted[0])[i + 1] = ((sint16*)&datastream[0])[(int)(sample * 2) + 1];
+								sample += invdelta;
+							}
+							tomix = dataconverted;
+						}
+						else
+						{
+							float sample = 0;
+							float delta = (float)format.freq / (float)streamformat.freq;
+							float invdelta = (float)streamformat.freq / (float)format.freq;
+							lengthloaded = samplestoread * 4;//readfromstream * delta * 2;
+							dataconverted = new uint8[lengthloaded];
+							for(int i = 0; i < lengthloaded / 2; i+=2)
+							{
+								((sint16*)&dataconverted[0])[i] = ((sint16*)&datastream[0])[(int)sample];
+								((sint16*)&dataconverted[0])[i + 1] = ((sint16*)&datastream[0])[(int)sample];
+								sample += invdelta;
+							}
+							tomix = dataconverted;
+						}
+					}
+					else
+					{
+						if(streamformat.channels == 2)
+						{
+							float sample = 0;
+							float delta = (float)format.freq / (float)streamformat.freq;
+							float invdelta = (float)streamformat.freq / (float)format.freq;
+							lengthloaded = samplestoread * 4;//readfromstream * delta * 2;
+							dataconverted = new uint8[lengthloaded];
+							for(int i = 0; i < lengthloaded / 2; i+=2)
+							{
+								((sint16*)&dataconverted[0])[i] = (datastream[(int)(sample * 2)] ^ 0x7F) << 8;
+								((sint16*)&dataconverted[0])[i + 1] = (datastream[(int)(sample * 2) + 1] ^ 0x7F);
+								sample += invdelta;
+							}
+							tomix = dataconverted;
+						}
+						else
+						{
+							float sample = 0;
+							float delta = (float)format.freq / (float)streamformat.freq;
+							float invdelta = (float)streamformat.freq / (float)format.freq;
+							lengthloaded = samplestoread * 4;//readfromstream * delta * 2 * 2;
+							dataconverted = new uint8[lengthloaded];
+							for(int i = 0; i < lengthloaded / 2; i+=2)
+							{
+								((sint16*)&dataconverted[0])[i] = (datastream[(int)sample] ^ 0x7F) << 8;
+								((sint16*)&dataconverted[0])[i + 1] = (datastream[(int)sample] ^ 0x7F) << 8;
+								sample += invdelta;
+							}
+							tomix = dataconverted;
+						}
 					}
 				} else {
 					tomix = datastream;
@@ -656,7 +963,7 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 				}
 
 				bool effectbufferloaded = false;
-				if (rate != 1 && format.format == AUDIO_S16SYS) {
+				/*if (rate != 1 && format.format == AUDIO_S16SYS) {
 					int in_len = (int)((double)lengthloaded / samplesize);
 					int out_len = samples;
 					if (!channel.resampler) {
@@ -673,7 +980,7 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 					effectbufferloaded = true;
 					tomix = effectbuffer;
 					lengthloaded = (out_len * samplesize);
-				}
+				}*/
 
 				if (channel.pan != 0.5f && format.channels == 2) {
 					if (!effectbufferloaded) {
@@ -736,7 +1043,19 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 					}
 				}
 
-				SDL_MixAudioFormat(&data[loaded], tomix, format.format, mixlength, mixvolume);
+				for(int i = 0; i < mixlength / 2; i++)
+				{
+					int val = ((sint16*)&data[loaded])[i];
+					val += ((int)((sint16*)&tomix[0])[i]);// * mixvolume / SDL_MIX_MAXVOLUME;
+					if(val < -32768)
+						val = -32768;
+					else if(val > 32767)
+						val = 32767;
+
+					((sint16*)&data[loaded])[i] = val;
+				}
+				//memcpy(&data[loaded], tomix, mixlength);
+				//SDL_MixAudioFormat(&data[loaded], tomix, format.format, mixlength, mixvolume);
 
 				if (dataconverted) {
 					delete[] dataconverted;
@@ -761,7 +1080,7 @@ void Mixer::MixChannel(Channel& channel, uint8* data, int length)
 		if (channel.loop == 0 && channel.offset >= channel.source->Length()) {
 			channel.done = true;
 		}
-	}*/
+	}
 }
 
 void Mixer::EffectPanS16(Channel& channel, sint16* data, int length)

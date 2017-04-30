@@ -116,23 +116,23 @@ void audio_stop_channel(void **channel);
 
 void audio_init()
 {
-	/*int result = SDL_Init(SDL_INIT_AUDIO);
-	if (result < 0) {
-		log_error("SDL_Init %s", SDL_GetError());
-		return;
-	}
+	//int result = SDL_Init(SDL_INIT_AUDIO);
+	//if (result < 0) {
+	//	log_error("SDL_Init %s", SDL_GetError());
+	//	return;
+	//}
 
-	if (str_is_null_or_empty(gConfigSound.device)) {
+	//if (str_is_null_or_empty(gConfigSound.device)) {
 		Mixer_Init(NULL);
 		gAudioCurrentDevice = 0;
-	} else {
-		Mixer_Init(gConfigSound.device);
-		for (int i = 0; i < gAudioDeviceCount; i++) {
-			if (strcmp(gAudioDevices[i].name, gConfigSound.device) == 0) {
-				gAudioCurrentDevice = i;
-			}
-		}
-	}*/
+	//} else {
+	//	Mixer_Init(gConfigSound.device);
+	//	for (int i = 0; i < gAudioDeviceCount; i++) {
+	//		if (strcmp(gAudioDevices[i].name, gConfigSound.device) == 0) {
+	//			gAudioCurrentDevice = i;
+	//		}
+	//	}
+	//}
 }
 
 void audio_quit()
